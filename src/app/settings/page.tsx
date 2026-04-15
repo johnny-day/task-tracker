@@ -367,7 +367,7 @@ export default function SettingsPage() {
                 <li>
                   <strong>Get Contents of URL</strong> &mdash; URL:{" "}
                   <code className="text-xs bg-border px-1 py-0.5 rounded">
-                    http://YOUR_LOCAL_IP:3000/api/fitness
+                    https://task-tracker-roan-one.vercel.app/api/fitness
                   </code>
                   , Method: POST, Headers: Authorization ={" "}
                   <code className="text-xs bg-border px-1 py-0.5 rounded">
@@ -386,11 +386,11 @@ export default function SettingsPage() {
             </li>
           </ol>
           <p className="mt-3 text-xs">
-            Your local network address is{" "}
+            The app is live at{" "}
             <code className="bg-border px-1.5 py-0.5 rounded">
-              http://10.50.21.21:3000
+              https://task-tracker-roan-one.vercel.app
             </code>
-            . Make sure your iPhone is on the same Wi-Fi network.
+            . The Shortcut works from any network (Wi-Fi or cellular).
           </p>
         </div>
       </section>
