@@ -191,37 +191,52 @@ export default function CalendarTimeline({
     );
   }
 
-  if (timedEntries.length > 0 && timedEntries[0].type !== "now") {
-    const firstStart =
-      timedEntries[0].type === "event"
-        ? timedEntries[0].event!.start
-        : timedEntries[0].task!.scheduledStart!;
-    if (new Date(firstStart) > now) {
-      const dropTime = new Date(
-        now.getTime() + (new Date(firstStart).getTime() - now.getTime()) / 2
-      );
-      dropTime.setSeconds(0, 0);
-      rendered.push(
-        renderDropZone(
-          dropTime.toISOString(),
-          `Before ${formatTime(firstStart)}`,
-          "before-first"
-        )
-      );
-    }
-  }
+  const nextUpcoming = timedEntries.find(
+    (e) => e.type !== "now" && e.time > now.getTime()
+  );
+  const minutesToNext = nextUpcoming
+    ? Math.round((nextUpcoming.time - now.getTime()) / 60000)
+    : null;
 
   for (let i = 0; i < timedEntries.length; i++) {
     const entry = timedEntries[i];
 
     if (entry.type === "now") {
       rendered.push(
-        <div key="now" className="flex items-center gap-2 py-1">
-          <div className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
-          <div className="flex-1 h-px bg-danger" />
-          <span className="text-xs font-semibold text-danger whitespace-nowrap">
-            {formatTime(now.toISOString())}
-          </span>
+        <div key="now" className="space-y-1">
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
+            <div className="flex-1 h-px bg-danger" />
+            <span className="text-xs font-semibold text-danger whitespace-nowrap">
+              {formatTime(now.toISOString())}
+            </span>
+          </div>
+          {minutesToNext !== null && minutesToNext > 0 && (
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverId("now-gap");
+              }}
+              onDragLeave={() => setDragOverId(null)}
+              onDrop={(e) => {
+                const dropTime = new Date(
+                  now.getTime() + 5 * 60000
+                );
+                dropTime.setSeconds(0, 0);
+                handleDrop(dropTime.toISOString(), e);
+              }}
+              className={`border-2 border-dashed rounded-lg text-center text-xs py-2.5 transition-all ${
+                dragOverId === "now-gap"
+                  ? "border-primary bg-primary-light/50 text-primary font-semibold"
+                  : "border-success/40 bg-success-light/30 text-success font-medium"
+              }`}
+            >
+              {dragOverId === "now-gap"
+                ? "Drop here"
+                : `${minutesToNext} min free`}
+            </div>
+          )}
         </div>
       );
       continue;
