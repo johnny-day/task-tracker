@@ -112,7 +112,6 @@ export default function CalendarTimeline({
     }
   }
 
-  entries.push({ type: "now", time: now.getTime() });
   entries.sort((a, b) => a.time - b.time);
 
   function handleDrop(targetTime: string, e: React.DragEvent) {
@@ -156,7 +155,7 @@ export default function CalendarTimeline({
   }
 
   const timedEntries = entries.filter(
-    (e) => e.type === "event" ? !e.event?.allDay : true
+    (e) => !(e.type === "event" && e.event?.allDay)
   );
   const allDayEntries = entries.filter(
     (e) => e.type === "event" && e.event?.allDay
@@ -191,63 +190,78 @@ export default function CalendarTimeline({
     );
   }
 
-  const nextUpcoming = timedEntries.find(
-    (e) => e.type !== "now" && e.time > now.getTime()
-  );
-  const minutesToNext = nextUpcoming
-    ? Math.round((nextUpcoming.time - now.getTime()) / 60000)
-    : null;
+  const nowMs = now.getTime();
+  let nowRendered = false;
+
+  function renderNowLine(minutesFree: number | null) {
+    return (
+      <div key="now" className="space-y-1">
+        <div className="flex items-center gap-2 py-1">
+          <div className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
+          <div className="flex-1 h-px bg-danger" />
+          <span className="text-xs font-semibold text-danger whitespace-nowrap">
+            {formatTime(now.toISOString())}
+          </span>
+        </div>
+        {minutesFree !== null && minutesFree > 0 && (
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDragOverId("now-gap");
+            }}
+            onDragLeave={() => setDragOverId(null)}
+            onDrop={(e) => {
+              const dropTime = new Date(nowMs + 5 * 60000);
+              dropTime.setSeconds(0, 0);
+              handleDrop(dropTime.toISOString(), e);
+            }}
+            className={`border-2 border-dashed rounded-lg text-center text-xs py-2.5 transition-all ${
+              dragOverId === "now-gap"
+                ? "border-primary bg-primary-light/50 text-primary font-semibold"
+                : "border-success/40 bg-success-light/30 text-success font-medium"
+            }`}
+          >
+            {dragOverId === "now-gap" ? "Drop here" : `${minutesFree} min free`}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   for (let i = 0; i < timedEntries.length; i++) {
     const entry = timedEntries[i];
 
-    if (entry.type === "now") {
-      rendered.push(
-        <div key="now" className="space-y-1">
-          <div className="flex items-center gap-2 py-1">
-            <div className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
-            <div className="flex-1 h-px bg-danger" />
-            <span className="text-xs font-semibold text-danger whitespace-nowrap">
-              {formatTime(now.toISOString())}
-            </span>
-          </div>
-          {minutesToNext !== null && minutesToNext > 0 && (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDragOverId("now-gap");
-              }}
-              onDragLeave={() => setDragOverId(null)}
-              onDrop={(e) => {
-                const dropTime = new Date(
-                  now.getTime() + 5 * 60000
-                );
-                dropTime.setSeconds(0, 0);
-                handleDrop(dropTime.toISOString(), e);
-              }}
-              className={`border-2 border-dashed rounded-lg text-center text-xs py-2.5 transition-all ${
-                dragOverId === "now-gap"
-                  ? "border-primary bg-primary-light/50 text-primary font-semibold"
-                  : "border-success/40 bg-success-light/30 text-success font-medium"
-              }`}
-            >
-              {dragOverId === "now-gap"
-                ? "Drop here"
-                : `${minutesToNext} min free`}
-            </div>
-          )}
-        </div>
-      );
-      continue;
+    if (!nowRendered && nowMs < entry.time) {
+      nowRendered = true;
+      const minutesFree = Math.round((entry.time - nowMs) / 60000);
+      rendered.push(renderNowLine(minutesFree > 0 ? minutesFree : null));
     }
 
     if (entry.type === "event" && entry.event) {
       const ev = entry.event;
+      const evStartMs = new Date(ev.start).getTime();
+      const evEndMs = new Date(ev.end).getTime();
+      const isInProgress = !nowRendered && nowMs >= evStartMs && nowMs <= evEndMs;
+
+      if (isInProgress) nowRendered = true;
+
+      const progressPct = isInProgress
+        ? ((nowMs - evStartMs) / (evEndMs - evStartMs)) * 100
+        : 0;
+      const remainingMin = isInProgress
+        ? Math.round((evEndMs - nowMs) / 60000)
+        : 0;
+
       const past = isPast(ev.end);
       const overlapping = todayPinned.filter(
         (t) => t.scheduledStart === ev.start
       );
+
+      const durationMin = (evEndMs - evStartMs) / 60000;
+      const minHeight = isInProgress
+        ? Math.max(80, Math.min(200, durationMin * 2))
+        : undefined;
 
       rendered.push(
         <div
@@ -260,13 +274,30 @@ export default function CalendarTimeline({
           onDragLeave={() => setDragOverId(null)}
           onDrop={(e) => handleDrop(ev.start, e)}
           className={`rounded-lg border p-3 transition-all ${
+            isInProgress ? "relative" : ""
+          } ${
             dragOverId === `ev-${ev.id}`
               ? "border-primary bg-primary-light/50 ring-2 ring-primary/30"
               : past
               ? "bg-border/30 border-border opacity-50"
+              : isInProgress
+              ? "bg-calendar-light/50 border-calendar ring-1 ring-calendar/30"
               : "bg-calendar-light/50 border-calendar-light"
           }`}
+          style={minHeight ? { minHeight: `${minHeight}px` } : undefined}
         >
+          {isInProgress && (
+            <div
+              className="absolute left-0 right-0 flex items-center gap-1 pointer-events-none z-10 px-1"
+              style={{ top: `${progressPct}%`, transform: "translateY(-50%)" }}
+            >
+              <div className="w-2.5 h-2.5 rounded-full bg-danger shrink-0" />
+              <div className="flex-1 h-px bg-danger" />
+              <span className="text-xs font-semibold text-danger whitespace-nowrap bg-card/80 px-1 rounded">
+                {formatTime(now.toISOString())}
+              </span>
+            </div>
+          )}
           <div className="flex items-start gap-3">
             <div
               className={`w-1 self-stretch rounded-full shrink-0 ${
@@ -285,6 +316,11 @@ export default function CalendarTimeline({
                 {formatTime(ev.start)} - {formatTime(ev.end)}
                 <span className="ml-2 opacity-70">{eventDuration(ev)}</span>
               </p>
+              {isInProgress && (
+                <p className="text-xs text-calendar font-medium mt-1">
+                  {remainingMin} min remaining
+                </p>
+              )}
               {dragOverId === `ev-${ev.id}` && (
                 <p className="text-xs text-primary font-medium mt-1">
                   Drop to double-book during this event
@@ -376,7 +412,7 @@ export default function CalendarTimeline({
     }
 
     const next = timedEntries[i + 1];
-    if (next && next.type !== "now") {
+    if (next) {
       const currentEnd = getEndTime(entry);
       const nextStart =
         next.type === "event"
@@ -399,8 +435,12 @@ export default function CalendarTimeline({
     }
   }
 
+  if (!nowRendered) {
+    rendered.push(renderNowLine(null));
+  }
+
   const lastTimed = timedEntries[timedEntries.length - 1];
-  if (lastTimed && lastTimed.type !== "now") {
+  if (lastTimed) {
     const lastEnd = getEndTime(lastTimed);
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 0, 0);
