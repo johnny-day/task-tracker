@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Task {
+  id              String   @id @default(cuid())
+  title           String
+  estimatedMinutes Int     @default(30)
+  priority        Int      @default(2) // 1=high, 2=medium, 3=low
+  status          String   @default("pending") // pending, in_progress, done
+  category        String   @default("general")
+  calendarEventId String?
+  sortOrder       Int      @default(0)
+  dueDate         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model FitnessLog {
+  id             String   @id @default(cuid())
+  date           String   @unique // YYYY-MM-DD
+  activeCalories Float    @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String   @default("Default")
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id             String @id @default("default")
+  wakeTime       String @default("07:00")
+  sleepTime      String @default("22:00")
+  calorieGoal    Int    @default(700)
+  calBurnRate    Float  @default(4.0) // calories per minute during exercise
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+}

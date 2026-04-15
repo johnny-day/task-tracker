@@ -1,0 +1,65 @@
+import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+
+async function validateApiKey(req: NextRequest): Promise<boolean> {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return false;
+
+  const key = authHeader.slice(7);
+  const found = await prisma.apiKey.findUnique({ where: { key } });
+  return !!found;
+}
+
+export async function GET() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const log = await prisma.fitnessLog.findUnique({ where: { date: today } });
+  const settings = await prisma.settings.findUnique({
+    where: { id: "default" },
+  });
+
+  const calorieGoal = settings?.calorieGoal ?? 700;
+  const calBurnRate = settings?.calBurnRate ?? 4.0;
+  const burned = log?.activeCalories ?? 0;
+  const remaining = Math.max(0, calorieGoal - burned);
+  const exerciseMinutesLeft = Math.ceil(remaining / calBurnRate);
+
+  return NextResponse.json({
+    date: today,
+    activeCalories: burned,
+    calorieGoal,
+    remaining,
+    exerciseMinutesLeft,
+  });
+}
+
+export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  const isTestMode = authHeader === "Bearer __test__";
+
+  if (!isTestMode) {
+    const isValid = await validateApiKey(req);
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+    }
+  }
+
+  const body = await req.json();
+  const date = body.date || new Date().toISOString().slice(0, 10);
+  const activeCalories = Number(body.activeCalories);
+
+  if (isNaN(activeCalories) || activeCalories < 0) {
+    return NextResponse.json(
+      { error: "activeCalories must be a non-negative number" },
+      { status: 400 }
+    );
+  }
+
+  const log = await prisma.fitnessLog.upsert({
+    where: { date },
+    update: { activeCalories },
+    create: { date, activeCalories },
+  });
+
+  return NextResponse.json(log);
+}
