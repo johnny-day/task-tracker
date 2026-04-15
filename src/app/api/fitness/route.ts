@@ -50,7 +50,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const date = body.date || new Date().toISOString().slice(0, 10);
 
-  let raw = body.activeCalories;
+  const bodyLower: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body)) {
+    bodyLower[k.toLowerCase()] = v;
+  }
+
+  let raw = bodyLower["activecalories"] ?? bodyLower["active_calories"] ?? bodyLower["calories"];
   if (typeof raw === "string") {
     raw = raw.replace(/[^0-9.]/g, "");
   }
@@ -58,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   if (isNaN(activeCalories) || activeCalories < 0) {
     return NextResponse.json(
-      { error: "activeCalories must be a non-negative number", received: body.activeCalories },
+      { error: "activeCalories must be a non-negative number", received: body },
       { status: 400 }
     );
   }
