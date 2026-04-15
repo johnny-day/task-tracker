@@ -269,16 +269,26 @@ export default function Dashboard() {
 
     const workMinutes = taskMinutes + exerciseMinutes;
     let minutesLeft = workMinutes;
-    let doneAtMs: number | null = null;
+    let workDoneAtMs: number | null = null;
 
     for (const window of freeWindows) {
       const windowMin = Math.round((window.end - window.start) / 60000);
       if (minutesLeft <= windowMin) {
-        doneAtMs = window.start + minutesLeft * 60000;
+        workDoneAtMs = window.start + minutesLeft * 60000;
         break;
       }
       minutesLeft -= windowMin;
     }
+
+    let lastEventEndMs = nowMs;
+    for (const b of occupiedBlocks) {
+      if (b.end > lastEventEndMs) lastEventEndMs = b.end;
+    }
+
+    const doneAtMs =
+      workDoneAtMs !== null
+        ? Math.max(workDoneAtMs, lastEventEndMs)
+        : null;
 
     const totalMinutes =
       remainingMeetingMinutes + exerciseMinutes + taskMinutes - doubleBookedMinutes;
