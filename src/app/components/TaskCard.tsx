@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Task, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/types";
 
 interface TaskCardProps {
@@ -7,6 +8,7 @@ interface TaskCardProps {
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  onUpdateMinutes?: (id: string, minutes: number) => void;
   draggable?: boolean;
   compact?: boolean;
 }
@@ -22,21 +24,32 @@ export default function TaskCard({
   onStatusChange,
   onDelete,
   onEdit,
+  onUpdateMinutes,
   draggable: isDraggable,
   compact,
 }: TaskCardProps) {
   const isDone = task.status === "done";
+  const [editingMinutes, setEditingMinutes] = useState(false);
+  const [minutesValue, setMinutesValue] = useState(task.estimatedMinutes);
+
+  function commitMinutes() {
+    setEditingMinutes(false);
+    const val = Math.max(1, minutesValue);
+    if (val !== task.estimatedMinutes && onUpdateMinutes) {
+      onUpdateMinutes(task.id, val);
+    }
+  }
 
   return (
     <div
-      draggable={isDraggable}
+      draggable={isDraggable && !editingMinutes}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/task-id", task.id);
         e.dataTransfer.effectAllowed = "move";
       }}
       className={`bg-card border border-border rounded-lg ${compact ? "p-2" : "p-4"} border-l-4 ${
         priorityColors[task.priority] || "border-l-border"
-      } ${isDone ? "opacity-60" : ""} ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
+      } ${isDone ? "opacity-60" : ""} ${isDraggable && !editingMinutes ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -55,7 +68,35 @@ export default function TaskCard({
             )}
           </div>
           <div className="flex items-center gap-3 text-xs text-text-muted">
-            <span>{task.estimatedMinutes} min</span>
+            {editingMinutes ? (
+              <span className="flex items-center gap-1">
+                <input
+                  type="number"
+                  value={minutesValue}
+                  onChange={(e) => setMinutesValue(Number(e.target.value))}
+                  onBlur={commitMinutes}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitMinutes();
+                    if (e.key === "Escape") setEditingMinutes(false);
+                  }}
+                  min={1}
+                  autoFocus
+                  className="w-14 px-1 py-0.5 rounded border border-primary bg-card text-text text-xs focus:outline-none"
+                />
+                min
+              </span>
+            ) : (
+              <button
+                onClick={() => {
+                  setMinutesValue(task.estimatedMinutes);
+                  setEditingMinutes(true);
+                }}
+                className="hover:text-primary hover:underline cursor-pointer"
+                title="Click to edit duration"
+              >
+                {task.estimatedMinutes} min
+              </button>
+            )}
             <span>{PRIORITY_LABELS[task.priority]}</span>
             <span className="capitalize">{task.category}</span>
           </div>

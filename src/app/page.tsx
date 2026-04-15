@@ -162,6 +162,15 @@ export default function Dashboard() {
     loadTasks();
   }
 
+  async function updateMinutes(id: string, minutes: number) {
+    await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estimatedMinutes: minutes }),
+    });
+    loadTasks();
+  }
+
   async function scheduleTask(taskId: string, scheduledStart: string | null) {
     await fetch(`/api/tasks/${taskId}`, {
       method: "PATCH",
@@ -419,6 +428,7 @@ export default function Dashboard() {
                     onStatusChange={updateTaskStatus}
                     onDelete={deleteTask}
                     onEdit={setEditingTask}
+                    onUpdateMinutes={updateMinutes}
                   />
                 ))}
               </div>
@@ -462,6 +472,7 @@ export default function Dashboard() {
                     onStatusChange={updateTaskStatus}
                     onDelete={deleteTask}
                     onEdit={setEditingTask}
+                    onUpdateMinutes={updateMinutes}
                     draggable
                   />
                 ))}
