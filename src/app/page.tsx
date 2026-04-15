@@ -127,8 +127,85 @@ export default function Dashboard() {
   const scheduledTasks = tasks.filter((t) => t.calendarEventId);
   const unscheduledTasks = tasks.filter((t) => !t.calendarEventId);
 
+  function computeDoneByTime() {
+    const now = new Date();
+
+    let remainingMeetingMinutes = 0;
+    for (const event of calendar.events) {
+      if (event.allDay) continue;
+      const end = new Date(event.end);
+      if (end > now) {
+        const start = new Date(event.start);
+        const effectiveStart = start > now ? start : now;
+        remainingMeetingMinutes += Math.round(
+          (end.getTime() - effectiveStart.getTime()) / 60000
+        );
+      }
+    }
+
+    const exerciseMinutes = fitness?.exerciseMinutesLeft ?? 0;
+
+    let taskMinutes = 0;
+    for (const t of unscheduledTasks) {
+      if (t.status !== "done") taskMinutes += t.estimatedMinutes;
+    }
+
+    const totalMinutes =
+      remainingMeetingMinutes + exerciseMinutes + taskMinutes;
+
+    const doneBy = new Date(now.getTime() + totalMinutes * 60000);
+    const timeStr = doneBy.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    return { timeStr, totalMinutes, remainingMeetingMinutes, exerciseMinutes, taskMinutes };
+  }
+
+  const doneBy = computeDoneByTime();
+
   return (
     <div className="space-y-6">
+      {/* Hero: Estimated Done Time */}
+      <div className="bg-card border border-border rounded-xl p-6 text-center">
+        {doneBy.totalMinutes === 0 ? (
+          <p className="text-3xl font-bold text-success">
+            You&apos;re done for the day!
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-text-muted uppercase tracking-wide mb-1">
+              Estimated done by
+            </p>
+            <p className="text-5xl font-bold text-primary mb-3">
+              {doneBy.timeStr}
+            </p>
+            <div className="flex items-center justify-center gap-4 text-sm text-text-muted">
+              <span>
+                <span className="font-semibold text-calendar">
+                  {doneBy.remainingMeetingMinutes}
+                </span>{" "}
+                min meetings
+              </span>
+              <span className="text-border">|</span>
+              <span>
+                <span className="font-semibold text-fitness">
+                  {doneBy.exerciseMinutes}
+                </span>{" "}
+                min exercise
+              </span>
+              <span className="text-border">|</span>
+              <span>
+                <span className="font-semibold text-primary">
+                  {doneBy.taskMinutes}
+                </span>{" "}
+                min tasks
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text">
           {new Date().toLocaleDateString(undefined, {
