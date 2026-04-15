@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarEvent, CompletionEstimate as EstimateType, Task } from "@/lib/types";
+import {
+  CalendarEvent,
+  CompletionEstimate as EstimateType,
+  Task,
+} from "@/lib/types";
 import TaskForm from "./components/TaskForm";
 import TaskCard from "./components/TaskCard";
 import FitnessWidget from "./components/FitnessWidget";
@@ -18,6 +22,40 @@ interface FitnessData {
 interface CalendarData {
   events: CalendarEvent[];
   connected: boolean;
+}
+
+interface TimeBlock {
+  start: number;
+  end: number;
+}
+
+function isTodayLocal(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function mergeBlocks(blocks: TimeBlock[]): TimeBlock[] {
+  if (blocks.length === 0) return [];
+  const sorted = [...blocks].sort((a, b) => a.start - b.start);
+  const merged: TimeBlock[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1];
+    if (sorted[i].start <= last.end) {
+      last.end = Math.max(last.end, sorted[i].end);
+    } else {
+      merged.push(sorted[i]);
+    }
+  }
+  return merged;
+}
+
+function blocksOverlap(a: TimeBlock, b: TimeBlock): boolean {
+  return a.start < b.end && b.start < a.end;
 }
 
 export default function Dashboard() {
@@ -124,47 +162,134 @@ export default function Dashboard() {
     loadTasks();
   }
 
-  const scheduledTasks = tasks.filter((t) => t.calendarEventId);
-  const unscheduledTasks = tasks.filter((t) => !t.calendarEventId);
+  async function scheduleTask(taskId: string, scheduledStart: string | null) {
+    await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduledStart }),
+    });
+    loadTasks();
+  }
+
+  const pinnedTasks = tasks.filter((t) => t.scheduledStart && t.status !== "done");
+  const unscheduledTasks = tasks.filter((t) => !t.scheduledStart && !t.calendarEventId && t.status !== "done");
+  const scheduledTasks = tasks.filter((t) => t.calendarEventId && t.status !== "done");
 
   function computeDoneByTime() {
     const now = new Date();
+    const nowMs = now.getTime();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 0, 0);
+    const endMs = endOfDay.getTime();
+
+    const todayEvents = calendar.events.filter(
+      (e) => !e.allDay && (isTodayLocal(e.start) || isTodayLocal(e.end))
+    );
+    const calBlocks: TimeBlock[] = todayEvents
+      .map((e) => ({
+        start: Math.max(new Date(e.start).getTime(), nowMs),
+        end: Math.min(new Date(e.end).getTime(), endMs),
+      }))
+      .filter((b) => b.start < b.end);
+
+    const occupiedBlocks = mergeBlocks(calBlocks);
 
     let remainingMeetingMinutes = 0;
-    for (const event of calendar.events) {
-      if (event.allDay) continue;
-      const start = new Date(event.start);
-      const end = new Date(event.end);
-      const isToday =
-        start.getFullYear() === now.getFullYear() &&
-        start.getMonth() === now.getMonth() &&
-        start.getDate() === now.getDate();
-      if (!isToday) continue;
-      if (end > now) {
-        const effectiveStart = start > now ? start : now;
-        remainingMeetingMinutes += Math.round(
-          (end.getTime() - effectiveStart.getTime()) / 60000
-        );
+    for (const b of occupiedBlocks) {
+      remainingMeetingMinutes += Math.round((b.end - b.start) / 60000);
+    }
+
+    const pinnedBlocks: TimeBlock[] = pinnedTasks
+      .map((t) => {
+        const s = new Date(t.scheduledStart!).getTime();
+        return { start: s, end: s + t.estimatedMinutes * 60000 };
+      })
+      .filter((b) => b.end > nowMs);
+
+    let doubleBookedMinutes = 0;
+    for (const pb of pinnedBlocks) {
+      for (const cb of occupiedBlocks) {
+        if (blocksOverlap(pb, cb)) {
+          const overlapStart = Math.max(pb.start, cb.start);
+          const overlapEnd = Math.min(pb.end, cb.end);
+          doubleBookedMinutes += Math.round(
+            (overlapEnd - overlapStart) / 60000
+          );
+        }
       }
+    }
+
+    let pinnedFreeMinutes = 0;
+    for (const pb of pinnedBlocks) {
+      let inFree = pb.end - pb.start;
+      for (const cb of occupiedBlocks) {
+        if (blocksOverlap(pb, cb)) {
+          const overlapStart = Math.max(pb.start, cb.start);
+          const overlapEnd = Math.min(pb.end, cb.end);
+          inFree -= overlapEnd - overlapStart;
+        }
+      }
+      pinnedFreeMinutes += Math.max(0, Math.round(inFree / 60000));
     }
 
     const exerciseMinutes = fitness?.exerciseMinutesLeft ?? 0;
 
     let taskMinutes = 0;
     for (const t of unscheduledTasks) {
-      if (t.status !== "done") taskMinutes += t.estimatedMinutes;
+      taskMinutes += t.estimatedMinutes;
+    }
+
+    const allOccupied = mergeBlocks([...occupiedBlocks, ...pinnedBlocks.filter((pb) => {
+      for (const cb of occupiedBlocks) {
+        if (blocksOverlap(pb, cb)) return false;
+      }
+      return true;
+    })]);
+
+    const freeWindows: TimeBlock[] = [];
+    let cursor = nowMs;
+    for (const block of allOccupied) {
+      if (cursor < block.start) {
+        freeWindows.push({ start: cursor, end: block.start });
+      }
+      cursor = Math.max(cursor, block.end);
+    }
+    if (cursor < endMs) {
+      freeWindows.push({ start: cursor, end: endMs });
+    }
+
+    const workMinutes = taskMinutes + exerciseMinutes;
+    let minutesLeft = workMinutes;
+    let doneAtMs: number | null = null;
+
+    for (const window of freeWindows) {
+      const windowMin = Math.round((window.end - window.start) / 60000);
+      if (minutesLeft <= windowMin) {
+        doneAtMs = window.start + minutesLeft * 60000;
+        break;
+      }
+      minutesLeft -= windowMin;
     }
 
     const totalMinutes =
-      remainingMeetingMinutes + exerciseMinutes + taskMinutes;
+      remainingMeetingMinutes + exerciseMinutes + taskMinutes - doubleBookedMinutes;
 
-    const doneBy = new Date(now.getTime() + totalMinutes * 60000);
-    const timeStr = doneBy.toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    const timeStr = doneAtMs
+      ? new Date(doneAtMs).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : null;
 
-    return { timeStr, totalMinutes, remainingMeetingMinutes, exerciseMinutes, taskMinutes };
+    return {
+      timeStr,
+      totalMinutes: Math.max(0, totalMinutes),
+      remainingMeetingMinutes,
+      exerciseMinutes,
+      taskMinutes,
+      doubleBookedMinutes,
+      overflow: doneAtMs === null && workMinutes > 0,
+    };
   }
 
   const doneBy = computeDoneByTime();
@@ -182,10 +307,16 @@ export default function Dashboard() {
             <p className="text-sm text-text-muted uppercase tracking-wide mb-1">
               Estimated done by
             </p>
-            <p className="text-5xl font-bold text-primary mb-3">
-              {doneBy.timeStr}
-            </p>
-            <div className="flex items-center justify-center gap-4 text-sm text-text-muted">
+            {doneBy.timeStr ? (
+              <p className="text-5xl font-bold text-primary mb-3">
+                {doneBy.timeStr}
+              </p>
+            ) : (
+              <p className="text-2xl font-bold text-danger mb-3">
+                Not enough time today
+              </p>
+            )}
+            <div className="flex items-center justify-center gap-4 text-sm text-text-muted flex-wrap">
               <span>
                 <span className="font-semibold text-calendar">
                   {doneBy.remainingMeetingMinutes}
@@ -206,6 +337,17 @@ export default function Dashboard() {
                 </span>{" "}
                 min tasks
               </span>
+              {doneBy.doubleBookedMinutes > 0 && (
+                <>
+                  <span className="text-border">|</span>
+                  <span>
+                    <span className="font-semibold text-success">
+                      -{doneBy.doubleBookedMinutes}
+                    </span>{" "}
+                    min overlap
+                  </span>
+                </>
+              )}
             </div>
           </>
         )}
@@ -256,16 +398,18 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Calendar */}
+        {/* Left: Calendar Timeline (drop target) */}
         <div className="space-y-4">
           <CalendarTimeline
             events={calendar.events}
             connected={calendar.connected}
+            pinnedTasks={pinnedTasks}
+            onScheduleTask={scheduleTask}
           />
           {scheduledTasks.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-5">
               <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
-                Scheduled Tasks
+                Calendar-Linked Tasks
               </h2>
               <div className="space-y-2">
                 {scheduledTasks.map((task) => (
@@ -282,15 +426,29 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Center: Unscheduled Tasks */}
+        {/* Center: Unscheduled Tasks (drag source) */}
         <div className="lg:col-span-1">
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div
+            className="bg-card border border-border rounded-xl p-5"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const taskId = e.dataTransfer.getData("text/task-id");
+              if (taskId) scheduleTask(taskId, null);
+            }}
+          >
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
               Unscheduled Tasks
               <span className="ml-2 text-xs font-normal">
-                ({unscheduledTasks.filter((t) => t.status !== "done").length})
+                ({unscheduledTasks.length})
               </span>
             </h2>
+            <p className="text-xs text-text-muted mb-3">
+              Drag tasks to the calendar to schedule them
+            </p>
             {unscheduledTasks.length === 0 ? (
               <p className="text-sm text-text-muted">
                 No unscheduled tasks. Add one above!
@@ -304,6 +462,7 @@ export default function Dashboard() {
                     onStatusChange={updateTaskStatus}
                     onDelete={deleteTask}
                     onEdit={setEditingTask}
+                    draggable
                   />
                 ))}
               </div>

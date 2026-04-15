@@ -7,6 +7,8 @@ interface TaskCardProps {
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
   onEdit: (task: Task) => void;
+  draggable?: boolean;
+  compact?: boolean;
 }
 
 const priorityColors: Record<number, string> = {
@@ -20,14 +22,21 @@ export default function TaskCard({
   onStatusChange,
   onDelete,
   onEdit,
+  draggable: isDraggable,
+  compact,
 }: TaskCardProps) {
   const isDone = task.status === "done";
 
   return (
     <div
-      className={`bg-card border border-border rounded-lg p-4 border-l-4 ${
+      draggable={isDraggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/task-id", task.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      className={`bg-card border border-border rounded-lg ${compact ? "p-2" : "p-4"} border-l-4 ${
         priorityColors[task.priority] || "border-l-border"
-      } ${isDone ? "opacity-60" : ""} transition-all`}
+      } ${isDone ? "opacity-60" : ""} ${isDraggable ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">

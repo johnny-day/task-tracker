@@ -347,51 +347,269 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Apple Shortcut Setup
         </h2>
-        <div className="prose prose-sm max-w-none text-text-muted space-y-2">
+        <div className="text-sm text-text-muted space-y-4">
           <p>
-            To automatically sync your Apple Fitness calories, create an Apple
-            Shortcut on your iPhone:
+            Follow these steps to automatically sync your Apple Fitness
+            calories from your iPhone. Read each step carefully.
           </p>
-          <ol className="list-decimal pl-5 space-y-1.5 text-sm">
-            <li>
-              Open the <strong>Shortcuts</strong> app on your iPhone
-            </li>
-            <li>
-              Create a new shortcut with these actions:
-              <ul className="list-disc pl-5 mt-1 space-y-1">
-                <li>
-                  <strong>Find Health Samples</strong> &mdash; Type: Active
-                  Energy, Group By: Day, Sort By: Start Date (Latest First),
-                  Limit: 1
-                </li>
-                <li>
-                  <strong>Get Contents of URL</strong> &mdash; URL:{" "}
-                  <code className="text-xs bg-border px-1 py-0.5 rounded">
-                    https://task-tracker-roan-one.vercel.app/api/fitness
-                  </code>
-                  , Method: POST, Headers: Authorization ={" "}
-                  <code className="text-xs bg-border px-1 py-0.5 rounded">
-                    Bearer YOUR_API_KEY
-                  </code>
-                  , Body (JSON):{" "}
-                  <code className="text-xs bg-border px-1 py-0.5 rounded">
-                    {`{"activeCalories": [Health Value]}`}
-                  </code>
-                </li>
-              </ul>
-            </li>
-            <li>
-              Set up a <strong>Personal Automation</strong> to run this shortcut
-              every hour, or when you open a specific app
-            </li>
-          </ol>
-          <p className="mt-3 text-xs">
-            The app is live at{" "}
-            <code className="bg-border px-1.5 py-0.5 rounded">
-              https://task-tracker-roan-one.vercel.app
-            </code>
-            . The Shortcut works from any network (Wi-Fi or cellular).
-          </p>
+
+          {/* Step 1 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">
+              Step 1: Generate your API key
+            </p>
+            <p>
+              Scroll up to <strong>Fitness API Keys</strong> on this page and
+              click <strong>Generate Key</strong>. Copy the full key (it starts
+              with{" "}
+              <code className="text-xs bg-border px-1 py-0.5 rounded">
+                ttk_
+              </code>
+              ). You will need this in Step 4.
+            </p>
+            <div className="mt-2 p-2 rounded bg-warning-light border border-warning text-xs text-warning">
+              <strong>Important:</strong> Generate the key on THIS website
+              (the live app), not on localhost. Keys are tied to the database
+              they were created on.
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">
+              Step 2: Open the Shortcuts app
+            </p>
+            <p>
+              On your iPhone, open the <strong>Shortcuts</strong> app and tap
+              the <strong>+</strong> button to create a new shortcut.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">
+              Step 3: Add &quot;Find Health Samples&quot;
+            </p>
+            <p className="mb-2">
+              Search for and add the{" "}
+              <strong>Find Health Samples</strong> action. Configure it
+              exactly as follows:
+            </p>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="p-1.5 bg-border/30 rounded">
+                <span className="text-text-muted">Type</span>
+              </div>
+              <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                Active Energy
+              </div>
+              <div className="p-1.5 bg-border/30 rounded">
+                <span className="text-text-muted">Group By</span>
+              </div>
+              <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                Day
+              </div>
+              <div className="p-1.5 bg-border/30 rounded">
+                <span className="text-text-muted">Sort By</span>
+              </div>
+              <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                Start Date (Latest First)
+              </div>
+              <div className="p-1.5 bg-border/30 rounded">
+                <span className="text-text-muted">Limit</span>
+              </div>
+              <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                1
+              </div>
+            </div>
+            <div className="mt-2 p-2 rounded bg-warning-light border border-warning text-xs text-warning">
+              <strong>Important:</strong> Setting Limit to{" "}
+              <strong>1</strong> is critical. Without it, the shortcut may
+              send multiple values and the calorie count will be wrong.
+            </div>
+          </div>
+
+          {/* Step 4 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">
+              Step 4: Add &quot;Get Contents of URL&quot;
+            </p>
+            <p className="mb-2">
+              Search for and add the{" "}
+              <strong>Get Contents of URL</strong> action. Configure each
+              field:
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <p className="font-medium text-text mb-1">URL:</p>
+                <code className="block bg-border px-2 py-1.5 rounded select-all break-all">
+                  https://task-tracker-roan-one.vercel.app/api/fitness
+                </code>
+              </div>
+
+              <div>
+                <p className="font-medium text-text mb-1">Method:</p>
+                <p>
+                  Tap <strong>Show More</strong>, then set Method to{" "}
+                  <strong>POST</strong>
+                </p>
+              </div>
+
+              <div>
+                <p className="font-medium text-text mb-1">Headers:</p>
+                <p className="mb-1">
+                  Tap <strong>Add New Header</strong>. The Shortcuts app
+                  gives you two fields, Key and Value:
+                </p>
+                <div className="grid grid-cols-[80px_1fr] gap-1">
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Key
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-mono">
+                    Authorization
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Value
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-mono break-all">
+                    Bearer ttk_your_key_here
+                  </div>
+                </div>
+                <div className="mt-2 p-2 rounded bg-warning-light border border-warning text-warning">
+                  <strong>Common mistakes:</strong>
+                  <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                    <li>
+                      The Value must start with the word{" "}
+                      <strong>Bearer</strong> (capital B), then a space,
+                      then your{" "}
+                      <code className="bg-border px-1 rounded">ttk_</code>{" "}
+                      key
+                    </li>
+                    <li>
+                      Do NOT type{" "}
+                      <code className="bg-border px-1 rounded">
+                        Authorization =
+                      </code>{" "}
+                      in the Value field &mdash; just the Bearer token
+                    </li>
+                    <li>
+                      Do NOT paste the key without{" "}
+                      <code className="bg-border px-1 rounded">
+                        Bearer{" "}
+                      </code>{" "}
+                      in front of it
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-medium text-text mb-1">Request Body:</p>
+                <p className="mb-1">
+                  Set body type to <strong>JSON</strong>, then tap{" "}
+                  <strong>Add New Field</strong> and choose{" "}
+                  <strong>Text</strong>:
+                </p>
+                <div className="grid grid-cols-[80px_1fr] gap-1">
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Key
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-mono">
+                    activeCalories
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Value
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded">
+                    Tap and select the{" "}
+                    <strong>Health Samples</strong> variable from Step 3
+                  </div>
+                </div>
+                <div className="mt-2 p-2 rounded bg-warning-light border border-warning text-warning">
+                  <strong>Do NOT</strong> paste raw JSON like{" "}
+                  <code className="bg-border px-1 rounded">
+                    {`{"activeCalories": ...}`}
+                  </code>{" "}
+                  as one field. Use the key/value fields the Shortcuts
+                  app provides.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Step 5 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">Step 5: Test it</p>
+            <p>
+              Tap the <strong>play button</strong> in the Shortcuts app to
+              run it once. Then check the dashboard &mdash; the fitness
+              widget should update within a few seconds.
+            </p>
+          </div>
+
+          {/* Step 6 */}
+          <div className="p-3 rounded-lg border border-border bg-card">
+            <p className="font-semibold text-text mb-1">
+              Step 6: Set up automation
+            </p>
+            <p>
+              Go to the <strong>Automation</strong> tab in Shortcuts. Create
+              a <strong>Personal Automation</strong> that runs this shortcut
+              every hour, or whenever you open a specific app (like your
+              fitness app).
+            </p>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className="p-3 rounded-lg border border-danger/30 bg-danger-light/30">
+            <p className="font-semibold text-text mb-2">Troubleshooting</p>
+            <div className="space-y-2 text-xs">
+              <div>
+                <p className="font-medium text-text">
+                  &quot;Invalid API key&quot;
+                </p>
+                <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                  <li>
+                    Did you generate the key on the{" "}
+                    <strong>live website</strong> (not localhost)?
+                  </li>
+                  <li>
+                    Does the header Value start with{" "}
+                    <code className="bg-border px-1 rounded">Bearer </code>
+                    followed by the key?
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-text">
+                  &quot;activeCalories must be a number&quot;
+                </p>
+                <ul className="list-disc pl-4 mt-0.5 space-y-0.5">
+                  <li>
+                    Make sure <strong>Limit</strong> is set to{" "}
+                    <strong>1</strong> in the Find Health Samples action
+                  </li>
+                  <li>
+                    Make sure the body key is exactly{" "}
+                    <code className="bg-border px-1 rounded">
+                      activeCalories
+                    </code>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium text-text">
+                  Still not working?
+                </p>
+                <p>
+                  Use the <strong>Test Fitness Data</strong> section above
+                  to verify the API is responding. If the test works but
+                  the Shortcut doesn&apos;t, the issue is in the Shortcut
+                  configuration.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>

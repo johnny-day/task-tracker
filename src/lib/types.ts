@@ -6,6 +6,7 @@ export interface Task {
   status: string;
   category: string;
   calendarEventId: string | null;
+  scheduledStart: string | null;
   sortOrder: number;
   dueDate: string | null;
   createdAt: string;
