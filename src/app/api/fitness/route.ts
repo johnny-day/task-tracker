@@ -3,9 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 async function validateApiKey(req: NextRequest): Promise<boolean> {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
+  if (!authHeader) return false;
 
-  const key = authHeader.slice(7);
+  const match = authHeader.match(/^bearer\s+(.+)$/i);
+  if (!match) return false;
+
+  const key = match[1].trim();
   const found = await prisma.apiKey.findUnique({ where: { key } });
   return !!found;
 }
@@ -35,7 +38,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  const isTestMode = authHeader === "Bearer __test__";
+  const isTestMode = authHeader?.toLowerCase() === "bearer __test__";
 
   if (!isTestMode) {
     const isValid = await validateApiKey(req);
