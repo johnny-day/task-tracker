@@ -45,7 +45,7 @@ export default function FitnessWidget({
       ) : (
         <div className="space-y-1 text-sm">
           <p className="text-text-muted">
-            <span className="font-semibold text-text">{remaining}</span> cal
+            <span className="font-semibold text-text">{Math.round(remaining)}</span> cal
             remaining
           </p>
           <p className="text-text-muted">
