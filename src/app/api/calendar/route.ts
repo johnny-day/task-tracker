@@ -3,6 +3,8 @@ import { authOptions, ExtendedSession } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { CalendarEvent } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const session = (await getServerSession(authOptions)) as ExtendedSession | null;
 
@@ -38,7 +40,7 @@ export async function GET() {
         }),
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-        next: { revalidate: 60 },
+        cache: "no-store",
       }
     );
 
