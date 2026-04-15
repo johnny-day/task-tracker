@@ -49,11 +49,16 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const date = body.date || new Date().toISOString().slice(0, 10);
-  const activeCalories = Number(body.activeCalories);
+
+  let raw = body.activeCalories;
+  if (typeof raw === "string") {
+    raw = raw.replace(/[^0-9.]/g, "");
+  }
+  const activeCalories = Number(raw);
 
   if (isNaN(activeCalories) || activeCalories < 0) {
     return NextResponse.json(
-      { error: "activeCalories must be a non-negative number" },
+      { error: "activeCalories must be a non-negative number", received: body.activeCalories },
       { status: 400 }
     );
   }
