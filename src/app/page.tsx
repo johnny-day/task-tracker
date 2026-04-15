@@ -133,9 +133,14 @@ export default function Dashboard() {
     let remainingMeetingMinutes = 0;
     for (const event of calendar.events) {
       if (event.allDay) continue;
+      const start = new Date(event.start);
       const end = new Date(event.end);
+      const isToday =
+        start.getFullYear() === now.getFullYear() &&
+        start.getMonth() === now.getMonth() &&
+        start.getDate() === now.getDate();
+      if (!isToday) continue;
       if (end > now) {
-        const start = new Date(event.start);
         const effectiveStart = start > now ? start : now;
         remainingMeetingMinutes += Math.round(
           (end.getTime() - effectiveStart.getTime()) / 60000
