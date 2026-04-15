@@ -57,7 +57,11 @@ export async function POST(req: NextRequest) {
 
   let raw = bodyLower["activecalories"] ?? bodyLower["active_calories"] ?? bodyLower["calories"];
   if (typeof raw === "string") {
-    raw = raw.replace(/[^0-9.]/g, "");
+    const numbers = raw.split(/[\n,;]+/).map((s: string) => {
+      const cleaned = s.replace(/[^0-9.]/g, "");
+      return cleaned ? parseFloat(cleaned) : 0;
+    });
+    raw = numbers.reduce((a: number, b: number) => a + b, 0);
   }
   const activeCalories = Number(raw);
 
