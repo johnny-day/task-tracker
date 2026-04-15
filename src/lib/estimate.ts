@@ -1,7 +1,15 @@
-import { CalendarEvent, Settings, Task } from "./types";
+import { CalendarEvent, Settings } from "./types";
+
+interface EstimateTask {
+  estimatedMinutes: number;
+  priority: number;
+  status: string;
+  calendarEventId: string | null;
+  sortOrder: number;
+}
 
 interface TimeBlock {
-  start: number; // minutes from midnight
+  start: number;
   end: number;
 }
 
@@ -39,7 +47,7 @@ function mergeBlocks(blocks: TimeBlock[]): TimeBlock[] {
 }
 
 export function calculateEstimate(
-  tasks: Task[],
+  tasks: EstimateTask[],
   calendarEvents: CalendarEvent[],
   fitnessCalories: number,
   settings: Settings,
