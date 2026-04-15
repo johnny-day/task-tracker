@@ -15,19 +15,8 @@ export async function GET() {
   const accessToken = session.accessToken;
 
   const now = new Date();
-  const startOfDay = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  ).toISOString();
-  const endOfDay = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59
-  ).toISOString();
+  const startOfDay = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const endOfDay = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
   try {
     const res = await fetch(
