@@ -61,7 +61,7 @@ export default function CalendarTimeline({
 
   if (!connected) {
     return (
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Calendar
         </h2>
@@ -306,7 +306,7 @@ export default function CalendarTimeline({
               : past
               ? "bg-border/30 border-border opacity-50"
               : isInProgress
-              ? "bg-calendar-light/50 border-calendar ring-1 ring-calendar/30"
+              ? "bg-primary-light/50 border-primary ring-1 ring-primary/30"
               : "bg-calendar-light/50 border-calendar-light"
           }`}
           style={minHeight ? { minHeight: `${minHeight}px` } : undefined}
@@ -509,10 +509,10 @@ export default function CalendarTimeline({
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
+    <div className="bg-card border border-border rounded-lg p-5">
+      <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
         Today&apos;s Schedule
-        <span className="ml-2 text-xs font-normal opacity-70">
+        <span className="ml-2 font-normal opacity-70">
           drag tasks here
         </span>
       </h2>

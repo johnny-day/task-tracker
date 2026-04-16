@@ -106,7 +106,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold text-text">Settings</h1>
 
       {/* Google Calendar */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Google Calendar
         </h2>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Schedule */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Daily Schedule
         </h2>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Quick Fitness Test */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Test Fitness Data
         </h2>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
       </section>
 
       {/* API Keys for Fitness Shortcut */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Fitness API Keys
         </h2>
@@ -343,7 +343,7 @@ export default function SettingsPage() {
       </section>
 
       {/* Apple Shortcut Instructions */}
-      <section className="bg-card border border-border rounded-xl p-5">
+      <section className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Apple Shortcut Setup
         </h2>

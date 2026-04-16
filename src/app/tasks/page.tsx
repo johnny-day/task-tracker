@@ -111,13 +111,13 @@ export default function TasksPage() {
       </div>
 
       {showAddForm && (
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <TaskForm onSubmit={addTask} onCancel={() => setShowAddForm(false)} />
         </div>
       )}
 
       {editingTask && (
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             Edit Task
           </h2>

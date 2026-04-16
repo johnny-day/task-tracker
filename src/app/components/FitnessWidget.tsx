@@ -17,17 +17,17 @@ export default function FitnessWidget({
   const isComplete = remaining <= 0;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-4">
+    <div className="bg-card border border-border rounded-lg p-5">
+      <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-4">
         Fitness
       </h2>
       <div className="flex items-end gap-2 mb-3">
-        <span className="text-3xl font-bold text-fitness">
+        <span className="text-4xl font-black text-fitness tracking-tight">
           {Math.round(activeCalories)}
         </span>
-        <span className="text-text-muted mb-1">/ {calorieGoal} cal</span>
+        <span className="text-text-muted mb-1 font-medium">/ {calorieGoal} cal</span>
       </div>
-      <div className="w-full h-3 bg-border rounded-full overflow-hidden mb-4">
+      <div className="w-full h-2 bg-border rounded-full overflow-hidden mb-4">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{

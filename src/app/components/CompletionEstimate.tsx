@@ -13,7 +13,7 @@ export default function CompletionEstimate({
 }: CompletionEstimateProps) {
   if (loading) {
     return (
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Completion Estimate
         </h2>
@@ -28,7 +28,7 @@ export default function CompletionEstimate({
   if (!estimate) return null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
+    <div className="bg-card border border-border rounded-lg p-5">
       <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
         Completion Estimate
       </h2>

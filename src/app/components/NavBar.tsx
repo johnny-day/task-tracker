@@ -15,7 +15,7 @@ export default function NavBar() {
   return (
     <nav className="border-b border-border bg-card">
       <div className="max-w-6xl mx-auto px-4 flex items-center h-14 gap-6">
-        <Link href="/" className="font-bold text-lg text-primary mr-4">
+        <Link href="/" className="font-black text-lg text-primary mr-4 uppercase tracking-wide">
           TaskTracker
         </Link>
         {links.map((link) => (

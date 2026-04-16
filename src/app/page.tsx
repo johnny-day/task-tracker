@@ -331,42 +331,42 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Hero: Estimated Done Time */}
-      <div className="bg-card border border-border rounded-xl p-6 text-center">
+      <div className="bg-card border border-border rounded-lg p-8 text-center">
         {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
-          <p className="text-3xl font-bold text-success">
+          <p className="text-4xl font-black text-success uppercase tracking-tight">
             You&apos;re done for the day!
           </p>
         ) : (
           <>
-            <p className="text-sm text-text-muted uppercase tracking-wide mb-1">
+            <p className="text-xs text-text-muted uppercase tracking-widest font-semibold mb-2">
               Estimated done by
             </p>
             {doneBy.timeStr ? (
-              <p className="text-5xl font-bold text-primary mb-3">
+              <p className="text-6xl font-black text-primary tracking-tight mb-4">
                 {doneBy.timeStr}
               </p>
             ) : (
-              <p className="text-2xl font-bold text-danger mb-3">
+              <p className="text-3xl font-black text-danger uppercase tracking-tight mb-4">
                 Not enough time today
               </p>
             )}
-            <div className="flex items-center justify-center gap-4 text-sm text-text-muted flex-wrap">
+            <div className="flex items-center justify-center gap-5 text-sm text-text-muted flex-wrap">
               <span>
-                <span className="font-semibold text-calendar">
+                <span className="font-bold text-calendar text-base">
                   {doneBy.remainingMeetingMinutes}
                 </span>{" "}
                 min meetings
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className="font-semibold text-fitness">
+                <span className="font-bold text-fitness text-base">
                   {doneBy.exerciseMinutes}
                 </span>{" "}
                 min exercise
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className="font-semibold text-primary">
+                <span className="font-bold text-primary text-base">
                   {doneBy.taskMinutes}
                 </span>{" "}
                 min tasks
@@ -375,7 +375,7 @@ export default function Dashboard() {
                 <>
                   <span className="text-border">|</span>
                   <span>
-                    <span className="font-semibold text-success">
+                    <span className="font-bold text-success text-base">
                       -{doneBy.doubleBookedMinutes}
                     </span>{" "}
                     min overlap
@@ -404,7 +404,7 @@ export default function Dashboard() {
       </div>
 
       {showAddForm && (
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             New Task
           </h2>
@@ -417,7 +417,7 @@ export default function Dashboard() {
       )}
 
       {editingTask && (
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
             Edit Task
           </h2>
@@ -442,7 +442,7 @@ export default function Dashboard() {
             onHideEvent={hideEvent}
           />
           {scheduledTasks.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-5">
+            <div className="bg-card border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
                 Calendar-Linked Tasks
               </h2>
@@ -461,7 +461,7 @@ export default function Dashboard() {
             </div>
           )}
           {hiddenEvents.length > 0 && (
-            <details className="bg-card border border-border rounded-xl p-4">
+            <details className="bg-card border border-border rounded-lg p-4">
               <summary className="text-xs font-semibold text-text-muted uppercase tracking-wide cursor-pointer select-none">
                 Hidden events ({hiddenEvents.length})
               </summary>
@@ -490,7 +490,7 @@ export default function Dashboard() {
         {/* Center: Unscheduled Tasks (drag source) */}
         <div className="lg:col-span-1">
           <div
-            className="bg-card border border-border rounded-xl p-5"
+            className="bg-card border border-border rounded-lg p-5"
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
@@ -542,7 +542,7 @@ export default function Dashboard() {
               exerciseMinutesLeft={fitness.exerciseMinutesLeft}
             />
           )}
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="bg-card border border-border rounded-lg p-5">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
               Completion Estimate
             </h2>
@@ -565,28 +565,28 @@ export default function Dashboard() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="p-2 rounded-lg bg-primary-light/50">
-                    <p className="text-text-muted text-xs">Task time</p>
-                    <p className="font-semibold text-text">
-                      {doneBy.taskMinutes} min
+                  <div className="p-2.5 rounded-lg bg-primary-light border border-primary/20">
+                    <p className="text-text-muted text-xs uppercase tracking-wider">Task time</p>
+                    <p className="font-bold text-primary text-lg">
+                      {doneBy.taskMinutes} <span className="text-xs font-normal text-text-muted">min</span>
                     </p>
                   </div>
-                  <div className="p-2 rounded-lg bg-fitness-light/50">
-                    <p className="text-text-muted text-xs">Exercise time</p>
-                    <p className="font-semibold text-text">
-                      {doneBy.exerciseMinutes} min
+                  <div className="p-2.5 rounded-lg bg-fitness-light border border-fitness/20">
+                    <p className="text-text-muted text-xs uppercase tracking-wider">Exercise</p>
+                    <p className="font-bold text-fitness text-lg">
+                      {doneBy.exerciseMinutes} <span className="text-xs font-normal text-text-muted">min</span>
                     </p>
                   </div>
-                  <div className="p-2 rounded-lg bg-calendar-light/50">
-                    <p className="text-text-muted text-xs">Calendar busy</p>
-                    <p className="font-semibold text-text">
-                      {doneBy.remainingMeetingMinutes} min
+                  <div className="p-2.5 rounded-lg bg-calendar-light border border-calendar/20">
+                    <p className="text-text-muted text-xs uppercase tracking-wider">Calendar</p>
+                    <p className="font-bold text-calendar text-lg">
+                      {doneBy.remainingMeetingMinutes} <span className="text-xs font-normal text-text-muted">min</span>
                     </p>
                   </div>
-                  <div className="p-2 rounded-lg bg-success-light/50">
-                    <p className="text-text-muted text-xs">Free time</p>
-                    <p className="font-semibold text-text">
-                      {doneBy.freeMinutes} min
+                  <div className="p-2.5 rounded-lg bg-success-light border border-success/20">
+                    <p className="text-text-muted text-xs uppercase tracking-wider">Free time</p>
+                    <p className="font-bold text-success text-lg">
+                      {doneBy.freeMinutes} <span className="text-xs font-normal text-text-muted">min</span>
                     </p>
                   </div>
                 </div>
