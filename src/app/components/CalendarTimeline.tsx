@@ -8,6 +8,7 @@ interface CalendarTimelineProps {
   connected: boolean;
   pinnedTasks?: Task[];
   onScheduleTask?: (taskId: string, scheduledStart: string | null) => void;
+  onHideEvent?: (eventId: string, summary: string) => void;
 }
 
 function formatTime(iso: string): string {
@@ -54,6 +55,7 @@ export default function CalendarTimeline({
   connected,
   pinnedTasks = [],
   onScheduleTask,
+  onHideEvent,
 }: CalendarTimelineProps) {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -181,9 +183,32 @@ export default function CalendarTimeline({
       >
         <div className="w-1 self-stretch rounded-full bg-calendar shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate text-text">
-            {ad.event.summary}
-          </p>
+          <div className="flex items-start justify-between gap-1">
+            <p className="font-medium text-sm truncate text-text">
+              {ad.event.summary}
+            </p>
+            {onHideEvent && (
+              <button
+                onClick={() => onHideEvent(ad.event!.id, ad.event!.summary)}
+                className="text-text-muted hover:text-danger shrink-0 p-0.5 rounded hover:bg-danger/10 transition-colors"
+                title="Hide from schedule"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-3.5 h-3.5"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.185A10.004 10.004 0 009.999 3a9.956 9.956 0 00-4.744 1.194L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.092 1.092a4 4 0 00-5.558-5.558z"
+                    clipRule="evenodd"
+                  />
+                  <path d="M10.748 13.93l2.523 2.523A9.987 9.987 0 0110 17a10.004 10.004 0 01-9.335-6.41 1.651 1.651 0 010-1.186A10.007 10.007 0 014.052 5.11L5.78 6.84a4 4 0 004.968 7.09z" />
+                </svg>
+              </button>
+            )}
+          </div>
           <p className="text-xs text-text-muted">All day</p>
         </div>
       </div>
@@ -305,13 +330,36 @@ export default function CalendarTimeline({
               }`}
             />
             <div className="min-w-0 flex-1">
-              <p
-                className={`font-medium text-sm truncate ${
-                  past ? "text-text-muted line-through" : "text-text"
-                }`}
-              >
-                {ev.summary}
-              </p>
+              <div className="flex items-start justify-between gap-1">
+                <p
+                  className={`font-medium text-sm truncate ${
+                    past ? "text-text-muted line-through" : "text-text"
+                  }`}
+                >
+                  {ev.summary}
+                </p>
+                {!past && onHideEvent && (
+                  <button
+                    onClick={() => onHideEvent(ev.id, ev.summary)}
+                    className="text-text-muted hover:text-danger shrink-0 p-0.5 rounded hover:bg-danger/10 transition-colors"
+                    title="Hide from schedule"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      className="w-3.5 h-3.5"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.185A10.004 10.004 0 009.999 3a9.956 9.956 0 00-4.744 1.194L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.092 1.092a4 4 0 00-5.558-5.558z"
+                        clipRule="evenodd"
+                      />
+                      <path d="M10.748 13.93l2.523 2.523A9.987 9.987 0 0110 17a10.004 10.004 0 01-9.335-6.41 1.651 1.651 0 010-1.186A10.007 10.007 0 014.052 5.11L5.78 6.84a4 4 0 004.968 7.09z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               <p className="text-xs text-text-muted">
                 {formatTime(ev.start)} - {formatTime(ev.end)}
                 <span className="ml-2 opacity-70">{eventDuration(ev)}</span>

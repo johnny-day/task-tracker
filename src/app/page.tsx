@@ -60,8 +60,16 @@ export default function Dashboard() {
     events: [],
     connected: false,
   });
+  const [hiddenEvents, setHiddenEvents] = useState<
+    { eventId: string; summary: string }[]
+  >([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const loadHiddenEvents = useCallback(async () => {
+    const res = await fetch("/api/hidden-events");
+    setHiddenEvents(await res.json());
+  }, []);
 
   const loadTasks = useCallback(async () => {
     const res = await fetch("/api/tasks?status=pending&status=in_progress");
@@ -86,7 +94,8 @@ export default function Dashboard() {
     loadTasks();
     loadFitness();
     loadCalendar();
-  }, [loadTasks, loadFitness, loadCalendar]);
+    loadHiddenEvents();
+  }, [loadTasks, loadFitness, loadCalendar, loadHiddenEvents]);
 
 
   async function addTask(data: {
@@ -154,6 +163,27 @@ export default function Dashboard() {
     loadTasks();
   }
 
+  const hiddenIds = new Set(hiddenEvents.map((h) => h.eventId));
+  const visibleEvents = calendar.events.filter((e) => !hiddenIds.has(e.id));
+
+  async function hideEvent(eventId: string, summary: string) {
+    setHiddenEvents((prev) => [...prev, { eventId, summary }]);
+    await fetch("/api/hidden-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId, summary }),
+    });
+  }
+
+  async function restoreEvent(eventId: string) {
+    setHiddenEvents((prev) => prev.filter((h) => h.eventId !== eventId));
+    await fetch("/api/hidden-events", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId }),
+    });
+  }
+
   const pinnedTasks = tasks.filter((t) => t.scheduledStart && t.status !== "done");
   const unscheduledTasks = tasks.filter((t) => !t.scheduledStart && !t.calendarEventId && t.status !== "done");
   const scheduledTasks = tasks.filter((t) => t.calendarEventId && t.status !== "done");
@@ -165,7 +195,7 @@ export default function Dashboard() {
     endOfDay.setHours(23, 59, 0, 0);
     const endMs = endOfDay.getTime();
 
-    const todayEvents = calendar.events.filter(
+    const todayEvents = visibleEvents.filter(
       (e) => !e.allDay && (isTodayLocal(e.start) || isTodayLocal(e.end))
     );
     const calBlocks: TimeBlock[] = todayEvents
@@ -380,7 +410,7 @@ export default function Dashboard() {
           </h2>
           <TaskForm
             onSubmit={addTask}
-            calendarEvents={calendar.events}
+            calendarEvents={visibleEvents}
             onCancel={() => setShowAddForm(false)}
           />
         </div>
@@ -393,7 +423,7 @@ export default function Dashboard() {
           </h2>
           <TaskForm
             onSubmit={updateTask}
-            calendarEvents={calendar.events}
+            calendarEvents={visibleEvents}
             initialValues={editingTask}
             submitLabel="Save Changes"
             onCancel={() => setEditingTask(null)}
@@ -405,10 +435,11 @@ export default function Dashboard() {
         {/* Left: Calendar Timeline (drop target) */}
         <div className="space-y-4">
           <CalendarTimeline
-            events={calendar.events}
+            events={visibleEvents}
             connected={calendar.connected}
             pinnedTasks={pinnedTasks}
             onScheduleTask={scheduleTask}
+            onHideEvent={hideEvent}
           />
           {scheduledTasks.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-5">
@@ -428,6 +459,31 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
+          )}
+          {hiddenEvents.length > 0 && (
+            <details className="bg-card border border-border rounded-xl p-4">
+              <summary className="text-xs font-semibold text-text-muted uppercase tracking-wide cursor-pointer select-none">
+                Hidden events ({hiddenEvents.length})
+              </summary>
+              <div className="mt-2 space-y-1">
+                {hiddenEvents.map((h) => (
+                  <div
+                    key={h.eventId}
+                    className="flex items-center justify-between gap-2 px-2 py-1.5 rounded bg-border/30 text-xs"
+                  >
+                    <span className="text-text-muted truncate">
+                      {h.summary || "(No title)"}
+                    </span>
+                    <button
+                      onClick={() => restoreEvent(h.eventId)}
+                      className="text-primary hover:underline shrink-0 font-medium"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </div>
 
