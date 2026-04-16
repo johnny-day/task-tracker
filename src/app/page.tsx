@@ -285,9 +285,13 @@ export default function Dashboard() {
       if (b.end > lastEventEndMs) lastEventEndMs = b.end;
     }
 
+    const hasRemainingEvents = lastEventEndMs > nowMs;
+
     const doneAtMs =
       workDoneAtMs !== null
         ? Math.max(workDoneAtMs, lastEventEndMs)
+        : hasRemainingEvents
+        ? lastEventEndMs
         : null;
 
     const totalMinutes =
@@ -307,6 +311,7 @@ export default function Dashboard() {
       exerciseMinutes,
       taskMinutes,
       doubleBookedMinutes,
+      hasRemainingEvents,
       overflow: doneAtMs === null && workMinutes > 0,
     };
   }
@@ -317,7 +322,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Hero: Estimated Done Time */}
       <div className="bg-card border border-border rounded-xl p-6 text-center">
-        {doneBy.totalMinutes === 0 ? (
+        {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
           <p className="text-3xl font-bold text-success">
             You&apos;re done for the day!
           </p>
