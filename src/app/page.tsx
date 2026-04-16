@@ -1,16 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  CalendarEvent,
-  CompletionEstimate as EstimateType,
-  Task,
-} from "@/lib/types";
+import { CalendarEvent, Task } from "@/lib/types";
 import TaskForm from "./components/TaskForm";
 import TaskCard from "./components/TaskCard";
 import FitnessWidget from "./components/FitnessWidget";
 import CalendarTimeline from "./components/CalendarTimeline";
-import CompletionEstimateWidget from "./components/CompletionEstimate";
 
 interface FitnessData {
   activeCalories: number;
@@ -65,8 +60,6 @@ export default function Dashboard() {
     events: [],
     connected: false,
   });
-  const [estimate, setEstimate] = useState<EstimateType | null>(null);
-  const [estimateLoading, setEstimateLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -88,22 +81,6 @@ export default function Dashboard() {
     setCalendar(await res.json());
   }, []);
 
-  const loadEstimate = useCallback(
-    async (calEvents: CalendarEvent[]) => {
-      setEstimateLoading(true);
-      try {
-        const res = await fetch("/api/estimate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ calendarEvents: calEvents }),
-        });
-        setEstimate(await res.json());
-      } finally {
-        setEstimateLoading(false);
-      }
-    },
-    []
-  );
 
   useEffect(() => {
     loadTasks();
@@ -111,11 +88,6 @@ export default function Dashboard() {
     loadCalendar();
   }, [loadTasks, loadFitness, loadCalendar]);
 
-  useEffect(() => {
-    if (tasks.length >= 0) {
-      loadEstimate(calendar.events);
-    }
-  }, [tasks, calendar.events, loadEstimate]);
 
   async function addTask(data: {
     title: string;
@@ -269,6 +241,11 @@ export default function Dashboard() {
       freeWindows.push({ start: cursor, end: endMs });
     }
 
+    let totalFreeMinutes = 0;
+    for (const w of freeWindows) {
+      totalFreeMinutes += Math.round((w.end - w.start) / 60000);
+    }
+
     const workMinutes = taskMinutes + exerciseMinutes;
     let minutesLeft = workMinutes;
     let workDoneAtMs: number | null = null;
@@ -314,6 +291,7 @@ export default function Dashboard() {
       taskMinutes,
       doubleBookedMinutes,
       hasRemainingEvents,
+      freeMinutes: totalFreeMinutes,
       overflow: doneAtMs === null && workMinutes > 0,
     };
   }
@@ -508,10 +486,63 @@ export default function Dashboard() {
               exerciseMinutesLeft={fitness.exerciseMinutesLeft}
             />
           )}
-          <CompletionEstimateWidget
-            estimate={estimate}
-            loading={estimateLoading}
-          />
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
+              Completion Estimate
+            </h2>
+            {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
+              <p className="text-success font-medium">
+                All tasks done! You&apos;re free.
+              </p>
+            ) : (
+              <>
+                <div className="mb-3">
+                  {doneBy.timeStr ? (
+                    <p className="text-2xl font-bold text-text">
+                      Done by{" "}
+                      <span className="text-primary">{doneBy.timeStr}</span>
+                    </p>
+                  ) : (
+                    <p className="text-lg font-semibold text-danger">
+                      Not enough time today
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="p-2 rounded-lg bg-primary-light/50">
+                    <p className="text-text-muted text-xs">Task time</p>
+                    <p className="font-semibold text-text">
+                      {doneBy.taskMinutes} min
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-fitness-light/50">
+                    <p className="text-text-muted text-xs">Exercise time</p>
+                    <p className="font-semibold text-text">
+                      {doneBy.exerciseMinutes} min
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-calendar-light/50">
+                    <p className="text-text-muted text-xs">Calendar busy</p>
+                    <p className="font-semibold text-text">
+                      {doneBy.remainingMeetingMinutes} min
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-success-light/50">
+                    <p className="text-text-muted text-xs">Free time</p>
+                    <p className="font-semibold text-text">
+                      {doneBy.freeMinutes} min
+                    </p>
+                  </div>
+                </div>
+                {doneBy.overflow && (
+                  <p className="mt-3 text-sm text-warning font-medium">
+                    Tasks + exercise exceed your free time today. Consider
+                    rescheduling.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
