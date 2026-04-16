@@ -5,15 +5,27 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const statuses = url.searchParams.getAll("status");
   const date = url.searchParams.get("date");
+  const updatedAfter = url.searchParams.get("updatedAfter");
+  const updatedBefore = url.searchParams.get("updatedBefore");
 
   const where: Record<string, unknown> = {};
   if (statuses.length === 1) where.status = statuses[0];
   else if (statuses.length > 1) where.status = { in: statuses };
   if (date) where.dueDate = date;
+  if (updatedAfter && updatedBefore) {
+    where.updatedAt = {
+      gte: new Date(updatedAfter),
+      lte: new Date(updatedBefore),
+    };
+  }
+
+  const completedRange = !!(updatedAfter && updatedBefore);
 
   const tasks = await prisma.task.findMany({
     where,
-    orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
+    orderBy: completedRange
+      ? { updatedAt: "desc" }
+      : [{ priority: "asc" }, { sortOrder: "asc" }],
   });
 
   return NextResponse.json(tasks);

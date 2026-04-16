@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarEvent, Task } from "@/lib/types";
 import TaskForm from "./components/TaskForm";
 import TaskCard from "./components/TaskCard";
@@ -65,6 +65,9 @@ export default function Dashboard() {
   >([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [completedToday, setCompletedToday] = useState<Task[]>([]);
+  const [compactHero, setCompactHero] = useState(false);
+  const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
   const loadHiddenEvents = useCallback(async () => {
     const res = await fetch("/api/hidden-events");
@@ -75,6 +78,36 @@ export default function Dashboard() {
     const res = await fetch("/api/tasks?status=pending&status=in_progress");
     const data = await res.json();
     setTasks(Array.isArray(data) ? data : []);
+  }, []);
+
+  const loadCompletedToday = useCallback(async () => {
+    const now = new Date();
+    const start = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const end = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+    const params = new URLSearchParams({
+      status: "done",
+      updatedAfter: start.toISOString(),
+      updatedBefore: end.toISOString(),
+    });
+    const res = await fetch(`/api/tasks?${params}`);
+    const data = await res.json();
+    setCompletedToday(Array.isArray(data) ? data : []);
   }, []);
 
   const loadFitness = useCallback(async () => {
@@ -95,7 +128,31 @@ export default function Dashboard() {
     loadFitness();
     loadCalendar();
     loadHiddenEvents();
-  }, [loadTasks, loadFitness, loadCalendar, loadHiddenEvents]);
+    loadCompletedToday();
+  }, [
+    loadTasks,
+    loadFitness,
+    loadCalendar,
+    loadHiddenEvents,
+    loadCompletedToday,
+  ]);
+
+  useEffect(() => {
+    const el = scrollSentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && window.scrollY < 80) {
+          setCompactHero(false);
+        } else {
+          setCompactHero(!entry.isIntersecting);
+        }
+      },
+      { root: null, threshold: 0 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
 
   async function addTask(data: {
@@ -112,6 +169,7 @@ export default function Dashboard() {
     });
     setShowAddForm(false);
     loadTasks();
+    loadCompletedToday();
   }
 
   async function updateTaskStatus(id: string, status: string) {
@@ -121,11 +179,13 @@ export default function Dashboard() {
       body: JSON.stringify({ status }),
     });
     loadTasks();
+    loadCompletedToday();
   }
 
   async function deleteTask(id: string) {
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     loadTasks();
+    loadCompletedToday();
   }
 
   async function updateTask(data: {
@@ -143,6 +203,7 @@ export default function Dashboard() {
     });
     setEditingTask(null);
     loadTasks();
+    loadCompletedToday();
   }
 
   async function updateMinutes(id: string, minutes: number) {
@@ -152,6 +213,7 @@ export default function Dashboard() {
       body: JSON.stringify({ estimatedMinutes: minutes }),
     });
     loadTasks();
+    loadCompletedToday();
   }
 
   async function scheduleTask(taskId: string, scheduledStart: string | null) {
@@ -161,6 +223,7 @@ export default function Dashboard() {
       body: JSON.stringify({ scheduledStart }),
     });
     loadTasks();
+    loadCompletedToday();
   }
 
   const hiddenIds = new Set(hiddenEvents.map((h) => h.eventId));
@@ -330,43 +393,79 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Hero: Estimated Done Time */}
-      <div className="bg-card border border-border rounded-lg p-8 text-center">
+      {/* Hero: Estimated Done Time (sticky; compacts when scrolled) */}
+      <div
+        className={`sticky top-0 z-20 bg-card/95 backdrop-blur-sm border-b border-border shadow-sm text-center transition-[padding] duration-200 ${
+          compactHero ? "py-2 px-2" : "py-8 px-4 rounded-lg border border-border"
+        }`}
+      >
         {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
-          <p className="text-4xl font-black text-success uppercase tracking-tight">
+          <p
+            className={`font-black text-success uppercase tracking-tight ${
+              compactHero ? "text-xl" : "text-4xl"
+            }`}
+          >
             You&apos;re done for the day!
           </p>
         ) : (
           <>
-            <p className="text-xs text-text-muted uppercase tracking-widest font-semibold mb-2">
+            <p
+              className={`text-text-muted uppercase tracking-widest font-semibold ${
+                compactHero ? "text-[10px] mb-0.5" : "text-xs mb-2"
+              }`}
+            >
               Estimated done by
             </p>
             {doneBy.timeStr ? (
-              <p className="text-6xl font-black text-primary tracking-tight mb-4">
+              <p
+                className={`font-black text-primary tracking-tight ${
+                  compactHero ? "text-2xl mb-1" : "text-6xl mb-4"
+                }`}
+              >
                 {doneBy.timeStr}
               </p>
             ) : (
-              <p className="text-3xl font-black text-danger uppercase tracking-tight mb-4">
+              <p
+                className={`font-black text-danger uppercase tracking-tight ${
+                  compactHero ? "text-lg mb-1" : "text-3xl mb-4"
+                }`}
+              >
                 Not enough time today
               </p>
             )}
-            <div className="flex items-center justify-center gap-5 text-sm text-text-muted flex-wrap">
+            <div
+              className={`flex items-center justify-center text-text-muted flex-wrap ${
+                compactHero ? "gap-x-2 gap-y-0.5 text-[10px]" : "gap-5 text-sm"
+              }`}
+            >
               <span>
-                <span className="font-bold text-calendar text-base">
+                <span
+                  className={`font-bold text-calendar ${
+                    compactHero ? "" : "text-base"
+                  }`}
+                >
                   {doneBy.remainingMeetingMinutes}
                 </span>{" "}
                 min meetings
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className="font-bold text-fitness text-base">
+                <span
+                  className={`font-bold text-fitness ${
+                    compactHero ? "" : "text-base"
+                  }`}
+                >
                   {doneBy.exerciseMinutes}
                 </span>{" "}
                 min exercise
               </span>
               <span className="text-border">|</span>
               <span>
-                <span className="font-bold text-primary text-base">
+                <span
+                  className={`font-bold text-primary ${
+                    compactHero ? "" : "text-base"
+                  }`}
+                >
                   {doneBy.taskMinutes}
                 </span>{" "}
                 min tasks
@@ -375,7 +474,11 @@ export default function Dashboard() {
                 <>
                   <span className="text-border">|</span>
                   <span>
-                    <span className="font-bold text-success text-base">
+                    <span
+                      className={`font-bold text-success ${
+                        compactHero ? "" : "text-base"
+                      }`}
+                    >
                       -{doneBy.doubleBookedMinutes}
                     </span>{" "}
                     min overlap
@@ -386,6 +489,8 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      <div ref={scrollSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text">
@@ -601,6 +706,37 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <details className="bg-card border border-border rounded-lg p-4">
+        <summary className="text-xs font-semibold text-text-muted uppercase tracking-widest cursor-pointer select-none">
+          Completed today ({completedToday.length})
+        </summary>
+        {completedToday.length === 0 ? (
+          <p className="mt-2 text-sm text-text-muted">
+            No tasks completed today yet.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {completedToday.map((t) => (
+              <li
+                key={t.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 text-sm border-b border-border/40 pb-2 last:border-0 last:pb-0"
+              >
+                <span className="font-medium text-text truncate min-w-0">
+                  {t.title}
+                </span>
+                <span className="text-text-muted shrink-0 text-xs tabular-nums">
+                  {t.estimatedMinutes} min ·{" "}
+                  {new Date(t.updatedAt).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
     </div>
   );
 }
