@@ -49,7 +49,24 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const date = body.date || new Date().toISOString().slice(0, 10);
+  let date = body.date;
+  if (!date) {
+    const tz = body.timezone;
+    if (tz) {
+      try {
+        date = new Intl.DateTimeFormat("en-CA", {
+          timeZone: tz,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
+      } catch {
+        date = new Date().toISOString().slice(0, 10);
+      }
+    } else {
+      date = new Date().toISOString().slice(0, 10);
+    }
+  }
 
   const bodyLower: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) {

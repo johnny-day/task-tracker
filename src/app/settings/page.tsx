@@ -525,6 +525,30 @@ export default function SettingsPage() {
                     <strong>Health Samples</strong> variable from Step 3
                   </div>
                 </div>
+                <p className="mt-2 mb-1">
+                  Then tap <strong>Add New Field</strong> &rarr;{" "}
+                  <strong>Text</strong> again to add a second field:
+                </p>
+                <div className="grid grid-cols-[80px_1fr] gap-1">
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Key
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-mono">
+                    timezone
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-medium text-text">
+                    Value
+                  </div>
+                  <div className="p-1.5 bg-border/30 rounded font-mono">
+                    America/Los_Angeles
+                  </div>
+                </div>
+                <div className="mt-2 p-2 rounded bg-primary-light border border-primary/30 text-xs text-primary">
+                  <strong>Why timezone?</strong> The server runs in UTC.
+                  Without this field, calories posted after 5 PM Pacific
+                  would be stored under the next day and carry over into
+                  tomorrow.
+                </div>
                 <div className="mt-2 p-2 rounded bg-warning-light border border-warning text-warning">
                   <strong>Do NOT</strong> paste raw JSON like{" "}
                   <code className="bg-border px-1 rounded">
