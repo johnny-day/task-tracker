@@ -13,8 +13,9 @@ async function validateApiKey(req: NextRequest): Promise<boolean> {
   return !!found;
 }
 
-export async function GET() {
-  const today = new Date().toISOString().slice(0, 10);
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const today = searchParams.get("date") || new Date().toISOString().slice(0, 10);
 
   const log = await prisma.fitnessLog.findUnique({ where: { date: today } });
   const settings = await prisma.settings.findUnique({

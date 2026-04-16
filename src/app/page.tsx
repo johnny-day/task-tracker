@@ -77,7 +77,9 @@ export default function Dashboard() {
   }, []);
 
   const loadFitness = useCallback(async () => {
-    const res = await fetch("/api/fitness");
+    const localDate = new Date();
+    const dateStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, "0")}-${String(localDate.getDate()).padStart(2, "0")}`;
+    const res = await fetch(`/api/fitness?date=${dateStr}`);
     setFitness(await res.json());
   }, []);
 
