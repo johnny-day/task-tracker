@@ -51,58 +51,54 @@ export default function TaskCard({
         priorityColors[task.priority] || "border-l-border"
       } ${isDone ? "opacity-60" : ""} ${isDraggable && !editingMinutes ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3
-              className={`font-medium truncate ${
-                isDone ? "line-through text-text-muted" : "text-text"
-              }`}
-            >
-              {task.title}
-            </h3>
-            {task.calendarEventId && (
-              <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-calendar-light text-calendar font-medium">
-                Scheduled
-              </span>
-            )}
-            {task.category === "longterm" && (
-              <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-border text-text-muted font-medium">
-                Long Term
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 text-xs text-text-muted">
-            {editingMinutes ? (
-              <span className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={minutesValue}
-                  onChange={(e) => setMinutesValue(Number(e.target.value))}
-                  onBlur={commitMinutes}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitMinutes();
-                    if (e.key === "Escape") setEditingMinutes(false);
-                  }}
-                  min={1}
-                  autoFocus
-                  className="w-14 px-1 py-0.5 rounded border border-primary bg-card text-text text-xs focus:outline-none"
-                />
-                min
-              </span>
-            ) : (
-              <button
-                onClick={() => {
-                  setMinutesValue(task.estimatedMinutes);
-                  setEditingMinutes(true);
+      <h3
+        className={`font-medium leading-snug mb-1 ${
+          isDone ? "line-through text-text-muted" : "text-text"
+        }`}
+      >
+        {task.title}
+      </h3>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          {editingMinutes ? (
+            <span className="flex items-center gap-1">
+              <input
+                type="number"
+                value={minutesValue}
+                onChange={(e) => setMinutesValue(Number(e.target.value))}
+                onBlur={commitMinutes}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitMinutes();
+                  if (e.key === "Escape") setEditingMinutes(false);
                 }}
-                className="hover:text-primary hover:underline cursor-pointer"
-                title="Click to edit duration"
-              >
-                {task.estimatedMinutes} min
-              </button>
-            )}
-          </div>
+                min={1}
+                autoFocus
+                className="w-14 px-1 py-0.5 rounded border border-primary bg-card text-text text-xs focus:outline-none"
+              />
+              min
+            </span>
+          ) : (
+            <button
+              onClick={() => {
+                setMinutesValue(task.estimatedMinutes);
+                setEditingMinutes(true);
+              }}
+              className="hover:text-primary hover:underline cursor-pointer"
+              title="Click to edit duration"
+            >
+              {task.estimatedMinutes} min
+            </button>
+          )}
+          {task.calendarEventId && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-calendar-light text-calendar font-medium">
+              Scheduled
+            </span>
+          )}
+          {task.category === "longterm" && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-border text-text-muted font-medium">
+              Long Term
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <select
