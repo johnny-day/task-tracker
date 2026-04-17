@@ -23,6 +23,7 @@ import { START_MY_DAY_EVENT } from "./components/StartMyDayNavButton";
 interface FitnessData {
   activeCalories: number;
   calorieGoal: number;
+  calBurnRate: number;
   remaining: number;
   exerciseMinutesLeft: number;
 }
@@ -794,6 +795,7 @@ function Dashboard() {
             <FitnessWidget
               activeCalories={fitness.activeCalories}
               calorieGoal={fitness.calorieGoal}
+              calBurnRate={fitness.calBurnRate ?? 4}
               remaining={fitness.remaining}
               exerciseMinutesLeft={fitness.exerciseMinutesLeft}
             />

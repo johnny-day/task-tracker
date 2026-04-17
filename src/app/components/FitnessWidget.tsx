@@ -3,6 +3,7 @@
 interface FitnessWidgetProps {
   activeCalories: number;
   calorieGoal: number;
+  calBurnRate: number;
   remaining: number;
   exerciseMinutesLeft: number;
 }
@@ -10,6 +11,7 @@ interface FitnessWidgetProps {
 export default function FitnessWidget({
   activeCalories,
   calorieGoal,
+  calBurnRate,
   remaining,
   exerciseMinutesLeft,
 }: FitnessWidgetProps) {
@@ -54,7 +56,9 @@ export default function FitnessWidget({
               {exerciseMinutesLeft}
             </span>{" "}
             min of exercise left
-            <span className="text-xs ml-1">(at 4 cal/min)</span>
+            <span className="text-xs ml-1">
+              (at {Number.isFinite(calBurnRate) ? calBurnRate : 4} cal/min)
+            </span>
           </p>
         </div>
       )}

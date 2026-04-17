@@ -23,8 +23,13 @@ export async function GET(req: NextRequest) {
     where: { id: "default" },
   });
 
-  const calorieGoal = settings?.calorieGoal ?? 700;
-  const calBurnRate = settings?.calBurnRate ?? 4.0;
+  const rawGoal = settings?.calorieGoal ?? 700;
+  const rawRate = settings?.calBurnRate ?? 4.0;
+  const calorieGoal = Math.max(1, Math.round(Number(rawGoal)) || 700);
+  const calBurnRate = Math.max(
+    0.1,
+    Number.isFinite(Number(rawRate)) ? Number(rawRate) : 4.0
+  );
 
   let burned = log?.activeCalories ?? 0;
   if (log && dayStartParam) {
@@ -34,12 +39,16 @@ export async function GET(req: NextRequest) {
     }
   }
   const remaining = Math.max(0, calorieGoal - burned);
-  const exerciseMinutesLeft = Math.ceil(remaining / calBurnRate);
+  const rawMinutes = Math.ceil(remaining / calBurnRate);
+  const exerciseMinutesLeft = Number.isFinite(rawMinutes)
+    ? Math.max(0, rawMinutes)
+    : 0;
 
   return NextResponse.json({
     date: today,
     activeCalories: burned,
     calorieGoal,
+    calBurnRate,
     remaining,
     exerciseMinutesLeft,
   });

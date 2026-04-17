@@ -18,6 +18,13 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const body = await req.json();
 
+  if (typeof body.calBurnRate === "number") {
+    body.calBurnRate = Math.max(0.1, body.calBurnRate);
+  }
+  if (typeof body.calorieGoal === "number") {
+    body.calorieGoal = Math.max(1, Math.round(body.calorieGoal));
+  }
+
   const settings = await prisma.settings.upsert({
     where: { id: "default" },
     update: body,
