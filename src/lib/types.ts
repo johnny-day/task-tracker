@@ -34,6 +34,7 @@ export interface Settings {
   sleepTime: string;
   calorieGoal: number;
   calBurnRate: number;
+  burnRateOnboardingDone: boolean;
 }
 
 export interface CompletionEstimate {

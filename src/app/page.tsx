@@ -2,10 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarEvent, Task } from "@/lib/types";
+import {
+  createEmptyEstimateDayLog,
+  createStartedDayLog,
+  loadDayLog,
+  localDateKey,
+  makeSnapshotFromDoneBy,
+  saveDayLog,
+  shouldAppendSnapshot,
+  type EstimateDayLog,
+} from "@/lib/estimateSnapshotStorage";
 import TaskForm from "./components/TaskForm";
 import TaskCard from "./components/TaskCard";
 import FitnessWidget from "./components/FitnessWidget";
 import CalendarTimeline from "./components/CalendarTimeline";
+import EstimateSnapshotTimeline from "./components/EstimateSnapshotTimeline";
 
 interface FitnessData {
   activeCalories: number;
@@ -68,6 +79,12 @@ export default function Dashboard() {
   const [completedToday, setCompletedToday] = useState<Task[]>([]);
   const [compactHero, setCompactHero] = useState(false);
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
+  const [dayLog, setDayLog] = useState<EstimateDayLog>(createEmptyEstimateDayLog);
+  const doneByRef = useRef<{
+    timeStr: string | null;
+    doneAtMs: number | null;
+    overflow: boolean;
+  }>({ timeStr: null, doneAtMs: null, overflow: false });
 
   const loadHiddenEvents = useCallback(async () => {
     const res = await fetch("/api/hidden-events");
@@ -165,6 +182,7 @@ export default function Dashboard() {
       timeoutId = window.setTimeout(() => {
         if (!cancelled) {
           loadFitness();
+          setDayLog(loadDayLog(localDateKey()));
           scheduleMidnightRefresh();
         }
       }, msUntilNextLocalMidnight());
@@ -173,7 +191,10 @@ export default function Dashboard() {
     scheduleMidnightRefresh();
 
     function onVisible() {
-      if (document.visibilityState === "visible") loadFitness();
+      if (document.visibilityState === "visible") {
+        loadFitness();
+        setDayLog(loadDayLog(localDateKey()));
+      }
     }
     document.addEventListener("visibilitychange", onVisible);
 
@@ -183,6 +204,47 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [loadFitness]);
+
+  useEffect(() => {
+    setDayLog(loadDayLog(localDateKey()));
+  }, []);
+
+  useEffect(() => {
+    function tryAppendFromRef() {
+      setDayLog((prev) => {
+        if (!prev.startedAt) return prev;
+        const snap = makeSnapshotFromDoneBy(doneByRef.current);
+        const last = prev.snapshots[prev.snapshots.length - 1];
+        if (!shouldAppendSnapshot(last, snap)) return prev;
+        const next = {
+          ...prev,
+          snapshots: [...prev.snapshots, snap],
+        };
+        saveDayLog(localDateKey(), next);
+        return next;
+      });
+    }
+
+    tryAppendFromRef();
+  }, [tasks, fitness, calendar.events, hiddenEvents]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setDayLog((prev) => {
+        if (!prev.startedAt) return prev;
+        const snap = makeSnapshotFromDoneBy(doneByRef.current);
+        const last = prev.snapshots[prev.snapshots.length - 1];
+        if (!shouldAppendSnapshot(last, snap)) return prev;
+        const next = {
+          ...prev,
+          snapshots: [...prev.snapshots, snap],
+        };
+        saveDayLog(localDateKey(), next);
+        return next;
+      });
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const el = scrollSentinelRef.current;
@@ -425,6 +487,7 @@ export default function Dashboard() {
 
     return {
       timeStr,
+      doneAtMs,
       totalMinutes: Math.max(0, totalMinutes),
       remainingMeetingMinutes,
       exerciseMinutes,
@@ -437,6 +500,18 @@ export default function Dashboard() {
   }
 
   const doneBy = computeDoneByTime();
+  doneByRef.current = {
+    timeStr: doneBy.timeStr,
+    doneAtMs: doneBy.doneAtMs,
+    overflow: doneBy.overflow,
+  };
+
+  function handleStartMyDay() {
+    const by = computeDoneByTime();
+    const next = createStartedDayLog(makeSnapshotFromDoneBy(by));
+    saveDayLog(localDateKey(), next);
+    setDayLog(next);
+  }
 
   return (
     <div className="space-y-6">
@@ -536,6 +611,8 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      <EstimateSnapshotTimeline dayLog={dayLog} onStartMyDay={handleStartMyDay} />
 
       <div ref={scrollSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 

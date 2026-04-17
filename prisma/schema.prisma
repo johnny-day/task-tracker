@@ -38,11 +38,12 @@ model ApiKey {
 }
 
 model Settings {
-  id             String @id @default("default")
-  wakeTime       String @default("07:00")
-  sleepTime      String @default("22:00")
-  calorieGoal    Int    @default(700)
-  calBurnRate    Float  @default(4.0) // calories per minute during exercise
+  id                      String  @id @default("default")
+  wakeTime                String  @default("07:00")
+  sleepTime               String  @default("22:00")
+  calorieGoal             Int     @default(700)
+  calBurnRate             Float   @default(4.0) // calories per minute during exercise
+  burnRateOnboardingDone  Boolean @default(false)
 }
 
 model HiddenEvent {

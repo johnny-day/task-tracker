@@ -60,8 +60,25 @@ export default function SettingsPage() {
         sleepTime: settings.sleepTime,
         calorieGoal: settings.calorieGoal,
         calBurnRate: settings.calBurnRate,
+        burnRateOnboardingDone: true,
       }),
     });
+    await loadSettings();
+    setSaving(false);
+  }
+
+  async function useDefaultBurnRateAndDismiss() {
+    if (!settings) return;
+    setSaving(true);
+    await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        calBurnRate: 4.0,
+        burnRateOnboardingDone: true,
+      }),
+    });
+    await loadSettings();
     setSaving(false);
   }
 
@@ -101,9 +118,68 @@ export default function SettingsPage() {
     );
   }
 
+  const showBurnRateOnboarding = settings.burnRateOnboardingDone === false;
+
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold text-text">Settings</h1>
+
+      {showBurnRateOnboarding && (
+        <section
+          className="bg-primary-light border border-primary/40 rounded-lg p-5"
+          aria-labelledby="burn-rate-onboarding-heading"
+        >
+          <h2
+            id="burn-rate-onboarding-heading"
+            className="text-base font-semibold text-text mb-2"
+          >
+            Set your exercise burn rate
+          </h2>
+          <p className="text-sm text-text-muted mb-3">
+            The dashboard uses <strong className="text-text">calories per minute</strong>{" "}
+            to turn your remaining calorie budget into &quot;minutes of exercise
+            left.&quot; Typical values are roughly <strong className="text-text">3–8</strong>{" "}
+            depending on how hard you usually work out (walking vs. vigorous
+            cardio).
+          </p>
+          <div className="mb-4 max-w-xs">
+            <label className="block text-xs text-text-muted mb-1">
+              Burn rate (cal/min)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              value={settings.calBurnRate}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  calBurnRate: Math.max(0.1, Number(e.target.value)),
+                })
+              }
+              min={0.1}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={saveSettings}
+              disabled={saving}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save and continue"}
+            </button>
+            <button
+              type="button"
+              onClick={useDefaultBurnRateAndDismiss}
+              disabled={saving}
+              className="px-4 py-2 border border-border rounded-lg hover:bg-border/50 transition-colors font-medium text-sm text-text disabled:opacity-50"
+            >
+              Use default (4 cal/min)
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Google Calendar */}
       <section className="bg-card border border-border rounded-lg p-5">
@@ -292,6 +368,15 @@ export default function SettingsPage() {
             POST /api/fitness
           </code>{" "}
           with the key as a Bearer token.
+        </p>
+        <p className="text-sm text-text-muted mb-4 p-3 rounded-lg border border-border bg-card">
+          <strong className="text-text">Why doesn&apos;t this site pull my
+          Apple calories automatically?</strong> Only Apple-approved apps (like
+          Shortcuts or a native iOS app) can read HealthKit. This website
+          receives calories when your Shortcut <em>sends</em> them—set up a{" "}
+          <strong className="text-text">Personal Automation</strong> in the
+          Shortcuts app (see Step 6 below) so that happens on a schedule without
+          tapping Run each time.
         </p>
 
         <div className="flex gap-2 mb-4">
@@ -576,11 +661,40 @@ export default function SettingsPage() {
             <p className="font-semibold text-text mb-1">
               Step 6: Set up automation
             </p>
-            <p>
-              Go to the <strong>Automation</strong> tab in Shortcuts. Create
-              a <strong>Personal Automation</strong> that runs this shortcut
-              every hour, or whenever you open a specific app (like your
-              fitness app).
+            <p className="mb-2">
+              Go to the <strong>Automation</strong> tab in Shortcuts. Tap{" "}
+              <strong>+</strong> and choose <strong>Create Personal
+              Automation</strong>. Pick a trigger that fits your day—examples:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 mb-2">
+              <li>
+                <strong className="text-text">Time of Day</strong> — e.g. every
+                1–2 hours while you are awake, or a few fixed times (morning,
+                lunch, evening).
+              </li>
+              <li>
+                <strong className="text-text">Alarm</strong> /{" "}
+                <strong className="text-text">Sleep</strong> — run once when
+                you wake up so the dashboard starts with today&apos;s calories.
+              </li>
+              <li>
+                <strong className="text-text">App</strong> — when you open{" "}
+                <strong>Fitness</strong>, <strong>Health</strong>, or another app
+                you use after workouts.
+              </li>
+            </ul>
+            <p className="mb-2">
+              Add the action <strong>Run Shortcut</strong> and select the
+              shortcut you built above. Turn off{" "}
+              <strong>Ask Before Running</strong> if you want it to fire without
+              a confirmation tap (iOS may still show a notification or banner for
+              some triggers—Apple controls that).
+            </p>
+            <p className="mb-2 p-2 rounded bg-border/30 text-xs">
+              For best reliability, leave <strong>Background App
+              Refresh</strong> on for Shortcuts (Settings → Shortcuts) and allow
+              any automation or notification prompts Shortcuts requests the first
+              time a trigger runs.
             </p>
           </div>
 

@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     sleepTime: "22:00",
     calorieGoal: 700,
     calBurnRate: 4.0,
+    burnRateOnboardingDone: true,
   };
 
   const estimate = calculateEstimate(
