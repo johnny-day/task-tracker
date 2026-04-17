@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
   const remaining = isShortcutStale
     ? calorieGoal
     : Math.max(0, calorieGoal - burned);
+  // Time to close the active-calorie gap at the user's burn rate (e.g. 700 cal @ 4/min → 175 min).
   let exerciseMinutesLeft = 0;
   if (remaining > 0) {
     const rawMinutes = Math.ceil(remaining / calBurnRate);

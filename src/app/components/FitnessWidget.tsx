@@ -51,8 +51,9 @@ export default function FitnessWidget({
         <div className="space-y-1 text-sm">
           {shortcutDataStale && (
             <p className="text-xs text-text-muted mb-1">
-              Today&apos;s activity hasn&apos;t synced yet; showing your full goal until the
-              Shortcut runs.
+              No Shortcut sync for today yet—burned active calories are 0 until it runs.
+              Exercise minutes are cal remaining ÷ your cal/min rate, so they start from your
+              full daily goal.
             </p>
           )}
           <p className="text-text-muted">
