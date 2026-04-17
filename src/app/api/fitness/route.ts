@@ -1,5 +1,5 @@
-import { formatZonedYmd } from "@/lib/zonedDayStart";
 import { prisma } from "@/lib/prisma";
+import { resolveFitnessFromLog } from "@/lib/resolveFitnessFromLog";
 import { NextRequest, NextResponse } from "next/server";
 
 async function validateApiKey(req: NextRequest): Promise<boolean> {
@@ -32,55 +32,25 @@ export async function GET(req: NextRequest) {
     Number.isFinite(Number(rawRate)) ? Number(rawRate) : 4.0
   );
 
-  const storedActiveCalories = Number(log?.activeCalories ?? 0);
-  let burned = Number.isFinite(storedActiveCalories) && storedActiveCalories >= 0 ? storedActiveCalories : 0;
-
   const tz = searchParams.get("tz");
-  const logYmdInTz =
-    log && tz ? formatZonedYmd(log.updatedAt.getTime(), tz) : null;
 
-  /**
-   * Stale = no Shortcut write on this calendar day in the user's zone.
-   * When `tz` is sent we only use calendar comparison; `updatedAt < midnight` is easy to get
-   * wrong across DST / boundary math and can zero out a real same-day sync.
-   * Without `tz`, fall back to the client's local-midnight ISO (`dayStart`) only.
-   */
-  let isShortcutStale = false;
-  if (log) {
-    if (tz) {
-      if (logYmdInTz != null && logYmdInTz < today) {
-        isShortcutStale = true;
-      }
-    } else if (dayStartParam) {
-      const boundary = new Date(dayStartParam);
-      if (!Number.isNaN(boundary.getTime()) && log.updatedAt < boundary) {
-        isShortcutStale = true;
-      }
-    }
-  }
-
-  if (isShortcutStale) {
-    burned = 0;
-  }
-
-  const remaining = isShortcutStale
-    ? calorieGoal
-    : Math.max(0, calorieGoal - burned);
-  // Time to close the active-calorie gap at the user's burn rate (e.g. 700 cal @ 4/min → 175 min).
-  let exerciseMinutesLeft = 0;
-  if (remaining > 0) {
-    const rawMinutes = Math.ceil(remaining / calBurnRate);
-    exerciseMinutesLeft = Number.isFinite(rawMinutes) ? Math.max(1, rawMinutes) : 1;
-  }
+  const resolved = resolveFitnessFromLog({
+    today,
+    tz,
+    dayStartParam,
+    log,
+    calorieGoal,
+    calBurnRate,
+  });
 
   const payload: Record<string, unknown> = {
     date: today,
-    activeCalories: burned,
+    activeCalories: resolved.activeCalories,
     calorieGoal,
     calBurnRate,
-    remaining,
-    exerciseMinutesLeft,
-    shortcutDataStale: isShortcutStale,
+    remaining: resolved.remaining,
+    exerciseMinutesLeft: resolved.exerciseMinutesLeft,
+    shortcutDataStale: resolved.shortcutDataStale,
   };
 
   if (searchParams.get("debug") === "1") {
@@ -89,9 +59,9 @@ export async function GET(req: NextRequest) {
       timeZone: tz,
       logRowDate: log?.date ?? null,
       logUpdatedAtIso: log?.updatedAt?.toISOString() ?? null,
-      logYmdInTimeZone: logYmdInTz,
-      storedActiveCalories: log != null ? storedActiveCalories : null,
-      isShortcutStale,
+      logYmdInTimeZone: resolved.logYmdInTz,
+      storedActiveCalories: resolved.storedActiveCalories,
+      isShortcutStale: resolved.shortcutDataStale,
       dayStartParam: dayStartParam ?? null,
     };
   }
