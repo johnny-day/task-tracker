@@ -6,6 +6,8 @@ interface FitnessWidgetProps {
   calBurnRate: number;
   remaining: number;
   exerciseMinutesLeft: number;
+  /** Last sync was before today in your time zone; numbers assume no activity yet today. */
+  shortcutDataStale?: boolean;
 }
 
 export default function FitnessWidget({
@@ -14,6 +16,7 @@ export default function FitnessWidget({
   calBurnRate,
   remaining,
   exerciseMinutesLeft,
+  shortcutDataStale,
 }: FitnessWidgetProps) {
   const progress = Math.min(100, (activeCalories / calorieGoal) * 100);
   const isComplete = remaining <= 0;
@@ -46,6 +49,12 @@ export default function FitnessWidget({
         </p>
       ) : (
         <div className="space-y-1 text-sm">
+          {shortcutDataStale && (
+            <p className="text-xs text-text-muted mb-1">
+              Today&apos;s activity hasn&apos;t synced yet; showing your full goal until the
+              Shortcut runs.
+            </p>
+          )}
           <p className="text-text-muted">
             <span className="font-semibold text-text">{Math.round(remaining)}</span> cal
             remaining

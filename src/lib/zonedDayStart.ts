@@ -1,4 +1,20 @@
 /**
+ * Calendar YYYY-MM-DD for `utcMillis` in `timeZone` (en-CA / ISO date order).
+ */
+export function formatZonedYmd(utcMillis: number, timeZone: string): string | null {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(utcMillis));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * UTC millis for the first instant of calendar date `ymd` (YYYY-MM-DD) in `timeZone`.
  * Used so server-side "midnight" matches the Shortcut / user calendar day.
  */

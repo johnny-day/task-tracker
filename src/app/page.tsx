@@ -26,6 +26,7 @@ interface FitnessData {
   calBurnRate: number;
   remaining: number;
   exerciseMinutesLeft: number;
+  shortcutDataStale?: boolean;
 }
 
 interface CalendarData {
@@ -179,6 +180,7 @@ function Dashboard() {
       calBurnRate: Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4,
       remaining,
       exerciseMinutesLeft,
+      shortcutDataStale: o.shortcutDataStale === true,
     });
   }, []);
 
@@ -833,6 +835,7 @@ function Dashboard() {
               calBurnRate={fitness.calBurnRate ?? 4}
               remaining={fitness.remaining}
               exerciseMinutesLeft={fitness.exerciseMinutesLeft}
+              shortcutDataStale={fitness.shortcutDataStale}
             />
           )}
           <div className="bg-card border border-border rounded-lg p-5">

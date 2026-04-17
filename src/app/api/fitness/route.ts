@@ -1,4 +1,4 @@
-import { getZonedDayStartMs } from "@/lib/zonedDayStart";
+import { formatZonedYmd, getZonedDayStartMs } from "@/lib/zonedDayStart";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -44,11 +44,32 @@ export async function GET(req: NextRequest) {
         ? new Date(dayStartParam)
         : null;
 
-  if (log && boundary && !Number.isNaN(boundary.getTime()) && log.updatedAt < boundary) {
+  /** Last Shortcut write was before "today" in the user's zone, or before local day start. */
+  let isShortcutStale = false;
+  if (log) {
+    if (tz) {
+      const logYmd = formatZonedYmd(log.updatedAt.getTime(), tz);
+      if (logYmd != null && logYmd < today) {
+        isShortcutStale = true;
+      }
+    }
+    if (
+      !isShortcutStale &&
+      boundary &&
+      !Number.isNaN(boundary.getTime()) &&
+      log.updatedAt < boundary
+    ) {
+      isShortcutStale = true;
+    }
+  }
+
+  if (isShortcutStale) {
     burned = 0;
   }
 
-  const remaining = Math.max(0, calorieGoal - burned);
+  const remaining = isShortcutStale
+    ? calorieGoal
+    : Math.max(0, calorieGoal - burned);
   let exerciseMinutesLeft = 0;
   if (remaining > 0) {
     const rawMinutes = Math.ceil(remaining / calBurnRate);
@@ -62,6 +83,7 @@ export async function GET(req: NextRequest) {
     calBurnRate,
     remaining,
     exerciseMinutesLeft,
+    shortcutDataStale: isShortcutStale,
   });
 }
 
