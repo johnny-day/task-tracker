@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "verify:fitness": "tsx scripts/verify-fitness.ts",
+    "verify:shortcut-payload": "tsx scripts/verify-shortcut-fitness-payload.ts",
     "e2e:exercise": "tsx scripts/e2e-exercise-smoke.ts",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { resolveFitnessFromLog } from "@/lib/resolveFitnessFromLog";
+import {
+  normalizeBodyKeys,
+  parseShortcutActiveCalories,
+  resolveFitnessPostDate,
+} from "@/lib/shortcutFitnessPayload";
 import { NextRequest, NextResponse } from "next/server";
 
 async function validateApiKey(req: NextRequest): Promise<boolean> {
@@ -84,41 +89,39 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const body = await req.json();
-  let date = body.date;
-  if (!date) {
-    const tz = body.timezone;
-    if (tz) {
-      try {
-        date = new Intl.DateTimeFormat("en-CA", {
-          timeZone: tz,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date());
-      } catch {
-        date = new Date().toISOString().slice(0, 10);
-      }
-    } else {
-      date = new Date().toISOString().slice(0, 10);
-    }
-  }
-
-  const bodyLower: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body)) {
-    bodyLower[k.toLowerCase()] = v;
-  }
-
-  let raw = bodyLower["activecalories"] ?? bodyLower["active_calories"] ?? bodyLower["calories"];
-  if (typeof raw === "string") {
-    const firstValue = raw.split(/[\n,;]+/)[0];
-    raw = firstValue.replace(/[^0-9.]/g, "");
-  }
-  const activeCalories = Number(raw);
-
-  if (isNaN(activeCalories) || activeCalories < 0) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
     return NextResponse.json(
-      { error: "activeCalories must be a non-negative number", received: body },
+      {
+        error:
+          "Invalid JSON body. Use Content-Type: application/json and key/value fields (or raw JSON) for activeCalories.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const bodyLower = normalizeBodyKeys(
+    body && typeof body === "object" && !Array.isArray(body) ? body : {}
+  );
+
+  const date = resolveFitnessPostDate(bodyLower, req);
+
+  const rawCal =
+    bodyLower.activecalories ??
+    bodyLower.active_calories ??
+    bodyLower.calories ??
+    bodyLower.activeenergyburned;
+  const activeCalories = parseShortcutActiveCalories(rawCal);
+
+  if (activeCalories == null) {
+    return NextResponse.json(
+      {
+        error:
+          "Could not read activeCalories. Send a number, or a Health sample object/array (quantity/value).",
+        received: body,
+      },
       { status: 400 }
     );
   }
