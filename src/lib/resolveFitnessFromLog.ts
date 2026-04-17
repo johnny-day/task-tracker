@@ -1,3 +1,4 @@
+import { exerciseMinutesFromBurnProgress } from "./fitnessExerciseMinutes";
 import { formatZonedYmd } from "./zonedDayStart";
 
 export type FitnessLogInput = {
@@ -58,11 +59,11 @@ export function resolveFitnessFromLog(input: ResolveFitnessInput): ResolveFitnes
 
   const remaining = isShortcutStale ? calorieGoal : Math.max(0, calorieGoal - burned);
 
-  let exerciseMinutesLeft = 0;
-  if (remaining > 0) {
-    const rawMinutes = Math.ceil(remaining / calBurnRate);
-    exerciseMinutesLeft = Number.isFinite(rawMinutes) ? Math.max(1, rawMinutes) : 1;
-  }
+  const exerciseMinutesLeft = exerciseMinutesFromBurnProgress(
+    calorieGoal,
+    burned,
+    calBurnRate
+  );
 
   return {
     activeCalories: burned,

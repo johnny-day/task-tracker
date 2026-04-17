@@ -19,6 +19,19 @@ import CalendarTimeline from "./components/CalendarTimeline";
 import EstimateSnapshotTimeline from "./components/EstimateSnapshotTimeline";
 import StartMyDayUrlSync from "./components/StartMyDayUrlSync";
 import { START_MY_DAY_EVENT } from "./components/StartMyDayNavButton";
+import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
+
+function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
+  for (const key of keys) {
+    const v = record[key];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return NaN;
+}
 
 interface FitnessData {
   activeCalories: number;
@@ -71,6 +84,11 @@ function blocksOverlap(a: TimeBlock, b: TimeBlock): boolean {
 function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fitness, setFitness] = useState<FitnessData | null>(null);
+  /** Used when `/api/fitness` has not loaded yet so exercise minutes are not stuck at 0. */
+  const [fitnessMeta, setFitnessMeta] = useState<{
+    calorieGoal: number;
+    calBurnRate: number;
+  } | null>(null);
   const [calendar, setCalendar] = useState<CalendarData>({
     events: [],
     connected: false,
@@ -152,8 +170,13 @@ function Dashboard() {
     const fitnessDebug =
       typeof window !== "undefined" &&
       window.localStorage.getItem("FITNESS_DEBUG") === "1";
+    const cb =
+      typeof process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA === "string" &&
+      process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.length >= 7
+        ? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+        : "";
     const res = await fetch(
-      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}${fitnessDebug ? "&debug=1" : ""}`,
+      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}${fitnessDebug ? "&debug=1" : ""}${cb ? `&cb=${encodeURIComponent(cb)}` : ""}`,
       { cache: "no-store" }
     );
     if (!res.ok) {
@@ -161,7 +184,7 @@ function Dashboard() {
       return;
     }
     const data: unknown = await res.json();
-    if (typeof data !== "object" || data === null) {
+    if (typeof data !== "object" || data === null || Array.isArray(data)) {
       setFitness(null);
       return;
     }
@@ -173,19 +196,23 @@ function Dashboard() {
       setFitness(null);
       return;
     }
-    const calorieGoal = Number(o.calorieGoal);
-    const activeCalories = Number(o.activeCalories);
-    const calBurnRateNum = Number(o.calBurnRate);
+    const calorieGoal = pickFiniteNumber(o, ["calorieGoal", "calorie_goal"]);
+    const activeCalories = pickFiniteNumber(o, ["activeCalories", "active_calories"]);
+    const calBurnRateNum = pickFiniteNumber(o, ["calBurnRate", "cal_burn_rate"]);
     if (!Number.isFinite(calorieGoal) || !Number.isFinite(activeCalories)) {
       setFitness(null);
       return;
     }
-    const calBurn = Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4;
+    const calBurn =
+      Number.isFinite(calBurnRateNum) && calBurnRateNum > 0 ? calBurnRateNum : 4;
     const stale = o.shortcutDataStale === true;
     /** Always derive from goal − displayed burn so exercise minutes match the bar (ignore flaky `remaining` in JSON). */
     const remaining = Math.max(0, calorieGoal - activeCalories);
-    const exerciseMinutesLeft =
-      remaining <= 0 ? 0 : Math.max(1, Math.ceil(remaining / calBurn));
+    const exerciseMinutesLeft = exerciseMinutesFromBurnProgress(
+      calorieGoal,
+      activeCalories,
+      calBurn
+    );
     setFitness({
       activeCalories,
       calorieGoal,
@@ -260,6 +287,29 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok || cancelled) return;
+        const s = (await res.json()) as Record<string, unknown>;
+        const g = pickFiniteNumber(s, ["calorieGoal", "calorie_goal"]);
+        const r = pickFiniteNumber(s, ["calBurnRate", "cal_burn_rate"]);
+        if (!Number.isFinite(g) || cancelled) return;
+        setFitnessMeta({
+          calorieGoal: g,
+          calBurnRate: Number.isFinite(r) && r > 0 ? r : 4,
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const id = window.setInterval(() => {
       setClockTick((n) => n + 1);
     }, 60 * 1000);
@@ -291,6 +341,7 @@ function Dashboard() {
   }, [
     tasks,
     fitness,
+    fitnessMeta,
     calendar.events,
     hiddenEvents,
     clockTick,
@@ -469,7 +520,20 @@ function Dashboard() {
       pinnedFreeMinutes += Math.max(0, Math.round(inFree / 60000));
     }
 
-    const exerciseMinutes = fitness?.exerciseMinutesLeft ?? 0;
+    const exerciseMinutes =
+      fitness != null
+        ? exerciseMinutesFromBurnProgress(
+            fitness.calorieGoal,
+            fitness.activeCalories,
+            fitness.calBurnRate ?? 4
+          )
+        : fitnessMeta != null
+          ? exerciseMinutesFromBurnProgress(
+              fitnessMeta.calorieGoal,
+              0,
+              fitnessMeta.calBurnRate
+            )
+          : 0;
 
     let taskMinutes = 0;
     for (const t of unscheduledTasks) {
