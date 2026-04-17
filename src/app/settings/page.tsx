@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
-import { getBrowserFitnessDayContext } from "@/lib/fitnessBrowserDay";
+import { getFitnessDayContextForDisplay } from "@/lib/fitnessBrowserDay";
 import { Settings } from "@/lib/types";
 
 interface MaskedApiKey {
@@ -49,9 +49,12 @@ export default function SettingsPage() {
       setSettings(null);
       return;
     }
+    const ftz = data.fitnessTimeZone;
     setSettings({
       ...data,
       burnRateOnboardingDone: Boolean(data.burnRateOnboardingDone),
+      fitnessTimeZone:
+        typeof ftz === "string" && ftz.trim() !== "" ? ftz.trim() : null,
     });
   }, []);
 
@@ -83,6 +86,7 @@ export default function SettingsPage() {
         calorieGoal: settings.calorieGoal,
         calBurnRate: settings.calBurnRate,
         burnRateOnboardingDone: true,
+        fitnessTimeZone: settings.fitnessTimeZone,
       }),
     });
     await loadSettings();
@@ -123,7 +127,10 @@ export default function SettingsPage() {
 
   async function sendTestCalories() {
     setTestError(null);
-    const { date, timeZone } = getBrowserFitnessDayContext();
+    if (!settings) return;
+    const { date, timeZone } = getFitnessDayContextForDisplay(
+      settings.fitnessTimeZone ?? null
+    );
     const res = await fetch("/api/fitness", {
       method: "POST",
       headers: {
@@ -358,6 +365,36 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="mb-4">
+          <label className="block text-xs text-text-muted mb-1">
+            Fitness calendar time zone (IANA)
+          </label>
+          <input
+            type="text"
+            value={settings.fitnessTimeZone ?? ""}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                fitnessTimeZone:
+                  e.target.value.trim() === "" ? null : e.target.value,
+              })
+            }
+            placeholder="e.g. America/Chicago"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text font-mono text-sm"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+          <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+            Use this if your Apple Shortcut only sends{" "}
+            <code className="bg-border/60 px-1 rounded">activeCalories</code>{" "}
+            (no <code className="bg-border/60 px-1 rounded">timezone</code> in
+            the JSON). Set it to the same IANA zone as your iPhone&apos;s day for
+            Health (for example where you live). Leave empty to use this
+            browser&apos;s time zone for the dashboard and test POST.
+          </p>
+        </div>
+
         <button
           onClick={saveSettings}
           disabled={saving}
@@ -374,9 +411,8 @@ export default function SettingsPage() {
         </h2>
         <p className="text-sm text-text-muted mb-3">
           Manually send a calorie value to test the fitness widget on the
-          dashboard. The request includes today&apos;s date and your
-          browser&apos;s time zone so it updates the same row the home page
-          reads (matching the Shortcut fields below).
+          dashboard. The request uses the same calendar day as the home page
+          (saved fitness time zone if set, otherwise this browser&apos;s zone).
         </p>
         <div className="flex gap-2 items-end">
           <div className="flex-1">

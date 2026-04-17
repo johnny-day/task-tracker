@@ -35,6 +35,8 @@ export interface Settings {
   calorieGoal: number;
   calBurnRate: number;
   burnRateOnboardingDone: boolean;
+  /** IANA zone: same calendar day as Shortcut when it only sends activeCalories. */
+  fitnessTimeZone: string | null;
 }
 
 export interface CompletionEstimate {

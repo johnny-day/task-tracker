@@ -44,6 +44,8 @@ model Settings {
   calorieGoal             Int     @default(700)
   calBurnRate             Float   @default(4.0) // calories per minute during exercise
   burnRateOnboardingDone  Boolean @default(false)
+  /** IANA zone for fitness row date when Shortcut omits timezone (same semantics as GET). */
+  fitnessTimeZone         String?
 }
 
 model HiddenEvent {

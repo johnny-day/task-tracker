@@ -49,6 +49,7 @@ export async function GET() {
       return NextResponse.json({
         ...row,
         burnRateOnboardingDone: true,
+        fitnessTimeZone: null,
       });
     }
 
@@ -59,6 +60,7 @@ export async function GET() {
       calorieGoal: 700,
       calBurnRate: 4.0,
       burnRateOnboardingDone: true,
+      fitnessTimeZone: null,
     });
   }
 }
@@ -71,6 +73,10 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof body.calorieGoal === "number") {
     body.calorieGoal = Math.max(1, Math.round(body.calorieGoal));
+  }
+  if (typeof body.fitnessTimeZone === "string") {
+    const t = body.fitnessTimeZone.trim();
+    body.fitnessTimeZone = t === "" ? null : t;
   }
 
   async function upsertPayload(payload: Record<string, unknown>) {

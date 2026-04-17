@@ -3,6 +3,10 @@
  * Run: npm run verify:fitness
  */
 import assert from "node:assert/strict";
+import {
+  getFitnessDayContextForDisplay,
+  isValidIanaTimeZone,
+} from "../src/lib/fitnessBrowserDay";
 import { resolveFitnessFromLog } from "../src/lib/resolveFitnessFromLog";
 
 // Previous calendar day in Chicago → stale; stored calories ignored for gap math
@@ -88,5 +92,13 @@ const noTz = resolveFitnessFromLog({
 });
 assert.equal(noTz.shortcutDataStale, false);
 assert.equal(noTz.remaining, 600);
+
+assert.equal(isValidIanaTimeZone(""), false);
+assert.equal(isValidIanaTimeZone("America/Chicago"), true);
+assert.equal(isValidIanaTimeZone("Not/A_Zone"), false);
+const z = getFitnessDayContextForDisplay("America/Chicago");
+assert.equal(z.timeZone, "America/Chicago");
+assert.match(z.date, /^\d{4}-\d{2}-\d{2}$/);
+assert.match(z.dayStartUtcIso, /^\d{4}-\d{2}-\d{2}T/);
 
 console.log("verify-fitness: all checks passed.");

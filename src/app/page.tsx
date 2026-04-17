@@ -28,7 +28,7 @@ import {
   DAY_TRACKING_STARTED_EVENT,
   START_MY_DAY_EVENT,
 } from "./components/StartMyDayNavButton";
-import { getBrowserFitnessDayContext } from "@/lib/fitnessBrowserDay";
+import { getFitnessDayContextForDisplay } from "@/lib/fitnessBrowserDay";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
 
 function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
@@ -98,6 +98,7 @@ function Dashboard() {
   const [fitnessMeta, setFitnessMeta] = useState<{
     calorieGoal: number;
     calBurnRate: number;
+    fitnessTimeZone: string | null;
   } | null>(null);
   const [calendar, setCalendar] = useState<CalendarData>({
     events: [],
@@ -207,18 +208,8 @@ function Dashboard() {
 
   const loadFitness = useCallback(async () => {
     try {
-      const localDate = new Date();
-      const { timeZone: tz, date: dateStr } = getBrowserFitnessDayContext();
-      const startOfDay = new Date(
-        localDate.getFullYear(),
-        localDate.getMonth(),
-        localDate.getDate(),
-        0,
-        0,
-        0,
-        0
-      );
-      const dayStart = startOfDay.toISOString();
+      const { timeZone: tz, date: dateStr, dayStartUtcIso: dayStart } =
+        getFitnessDayContextForDisplay(fitnessMeta?.fitnessTimeZone ?? null);
       const fitnessDebug =
         typeof window !== "undefined" &&
         window.localStorage.getItem("FITNESS_DEBUG") === "1";
@@ -278,7 +269,7 @@ function Dashboard() {
     } finally {
       markEstimateDepReady("fitness");
     }
-  }, [markEstimateDepReady]);
+  }, [markEstimateDepReady, fitnessMeta?.fitnessTimeZone]);
 
   const loadCalendar = useCallback(async () => {
     try {
@@ -361,9 +352,13 @@ function Dashboard() {
         const g = pickFiniteNumber(s, ["calorieGoal", "calorie_goal"]);
         const r = pickFiniteNumber(s, ["calBurnRate", "cal_burn_rate"]);
         if (!Number.isFinite(g) || cancelled) return;
+        const ftz = s.fitnessTimeZone;
+        const fitnessTimeZone =
+          typeof ftz === "string" && ftz.trim() !== "" ? ftz.trim() : null;
         setFitnessMeta({
           calorieGoal: g,
           calBurnRate: Number.isFinite(r) && r > 0 ? r : 4,
+          fitnessTimeZone,
         });
       } catch {
         /* ignore */

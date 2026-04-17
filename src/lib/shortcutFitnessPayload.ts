@@ -128,13 +128,32 @@ export function normalizeBodyKeys(body: Record<string, unknown>): Record<string,
   return out;
 }
 
+export type ResolveFitnessPostDateOptions = {
+  /** When the Shortcut omits `timezone`, use this IANA zone before IP / UTC (Settings). */
+  settingsFallbackTz?: string | null;
+};
+
+function ymdInTimeZone(timeZone: string, instant: Date = new Date()): string | null {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(instant);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Calendar YYYY‑MM‑DD for the fitness row: explicit ISO date, else IANA zone from
- * body or edge (Vercel), else UTC calendar day (legacy).
+ * body, then Settings fallback, then Vercel edge, then UTC calendar day.
  */
 export function resolveFitnessPostDate(
   bodyLower: Record<string, unknown>,
-  req: NextRequest
+  req: NextRequest,
+  options?: ResolveFitnessPostDateOptions
 ): string {
   const explicit = bodyLower.date;
   if (typeof explicit === "string" && ISO_DATE.test(explicit.trim())) {
@@ -145,23 +164,20 @@ export function resolveFitnessPostDate(
     bodyLower.timezone ?? bodyLower.time_zone ?? bodyLower.tz;
   const fromBody = typeof tzRaw === "string" ? tzRaw.trim() : "";
 
+  const settingsRaw = options?.settingsFallbackTz;
+  const fromSettings =
+    typeof settingsRaw === "string" ? settingsRaw.trim() : "";
+
   const edgeTz = req.headers.get("x-vercel-ip-timezone")?.trim() ?? "";
 
-  for (const tz of [fromBody, edgeTz]) {
+  const now = new Date();
+  for (const tz of [fromBody, fromSettings, edgeTz]) {
     if (!tz) continue;
-    try {
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date());
-    } catch {
-      /* try next */
-    }
+    const ymd = ymdInTimeZone(tz, now);
+    if (ymd) return ymd;
   }
 
-  return new Date().toISOString().slice(0, 10);
+  return now.toISOString().slice(0, 10);
 }
 
 /**

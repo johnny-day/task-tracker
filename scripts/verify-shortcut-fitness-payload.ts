@@ -55,4 +55,44 @@ const reqTz = new NextRequest("https://example.com/api/fitness", {
 });
 assert.match(resolveFitnessPostDate({}, reqTz), /^\d{4}-\d{2}-\d{2}$/);
 
+const reqPlain = new NextRequest("https://example.com/api/fitness");
+const expectedChicago = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Chicago",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
+assert.equal(
+  resolveFitnessPostDate(
+    normalizeBodyKeys({ activecalories: 100 }),
+    reqPlain,
+    { settingsFallbackTz: "America/Chicago" }
+  ),
+  expectedChicago
+);
+
+assert.equal(
+  resolveFitnessPostDate({}, reqTz, { settingsFallbackTz: "Not/A_Region" }),
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+);
+
+assert.equal(
+  resolveFitnessPostDate(
+    normalizeBodyKeys({ timezone: "UTC" }),
+    reqTz,
+    { settingsFallbackTz: "America/Chicago" }
+  ),
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+);
+
 console.log("verify-shortcut-fitness-payload: ok");

@@ -60,7 +60,8 @@ export async function GET(req: NextRequest) {
   };
 
   if (searchParams.get("debug") === "1") {
-    payload._debug = {
+    const rowFound = log != null;
+    const debug: Record<string, unknown> = {
       requestedDate: today,
       timeZone: tz,
       logRowDate: log?.date ?? null,
@@ -69,7 +70,18 @@ export async function GET(req: NextRequest) {
       storedActiveCalories: resolved.storedActiveCalories,
       isShortcutStale: resolved.shortcutDataStale,
       dayStartParam: dayStartParam ?? null,
+      rowFound,
+      settingsFitnessTimeZone: settings?.fitnessTimeZone ?? null,
     };
+    if (!rowFound) {
+      const tzUnset =
+        settings?.fitnessTimeZone == null ||
+        (typeof settings.fitnessTimeZone === "string" && settings.fitnessTimeZone.trim() === "");
+      debug.hint = tzUnset
+        ? "No FitnessLog for this date. If the Shortcut only sends activeCalories, set Fitness calendar time zone in Settings so POST and GET share the same calendar day."
+        : "No FitnessLog for this date. Confirm Settings fitness time zone matches your location, then run the Shortcut again.";
+    }
+    payload._debug = debug;
   }
 
   return NextResponse.json(payload, {
@@ -107,7 +119,13 @@ export async function POST(req: NextRequest) {
     body && typeof body === "object" && !Array.isArray(body) ? body : {}
   );
 
-  const date = resolveFitnessPostDate(bodyLower, req);
+  const settings = await prisma.settings.findUnique({
+    where: { id: "default" },
+  });
+
+  const date = resolveFitnessPostDate(bodyLower, req, {
+    settingsFallbackTz: settings?.fitnessTimeZone ?? null,
+  });
 
   const rawCal = pickRawCaloriesFromBody(bodyLower);
   const activeCalories = parseShortcutActiveCalories(rawCal);
