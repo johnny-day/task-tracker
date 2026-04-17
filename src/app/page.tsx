@@ -131,6 +131,14 @@ function Dashboard() {
 
   const loadFitness = useCallback(async () => {
     const localDate = new Date();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    /** Same calendar date rule as Shortcut POST when it uses `timezone` + en-CA. */
+    const dateStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
     const startOfDay = new Date(
       localDate.getFullYear(),
       localDate.getMonth(),
@@ -140,9 +148,7 @@ function Dashboard() {
       0,
       0
     );
-    const dateStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, "0")}-${String(localDate.getDate()).padStart(2, "0")}`;
     const dayStart = startOfDay.toISOString();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const res = await fetch(
       `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}`,
       { cache: "no-store" }
