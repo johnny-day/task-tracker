@@ -80,11 +80,8 @@ export default function Dashboard() {
   const [compactHero, setCompactHero] = useState(false);
   const scrollSentinelRef = useRef<HTMLDivElement>(null);
   const [dayLog, setDayLog] = useState<EstimateDayLog>(createEmptyEstimateDayLog);
-  const doneByRef = useRef<{
-    timeStr: string | null;
-    doneAtMs: number | null;
-    overflow: boolean;
-  }>({ timeStr: null, doneAtMs: null, overflow: false });
+  /** Bumps once per minute so passive “now” can move the done-by estimate without a task edit. */
+  const [clockTick, setClockTick] = useState(0);
 
   const loadHiddenEvents = useCallback(async () => {
     const res = await fetch("/api/hidden-events");
@@ -210,41 +207,35 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    function tryAppendFromRef() {
-      setDayLog((prev) => {
-        if (!prev.startedAt) return prev;
-        const snap = makeSnapshotFromDoneBy(doneByRef.current);
-        const last = prev.snapshots[prev.snapshots.length - 1];
-        if (!shouldAppendSnapshot(last, snap)) return prev;
-        const next = {
-          ...prev,
-          snapshots: [...prev.snapshots, snap],
-        };
-        saveDayLog(localDateKey(), next);
-        return next;
-      });
-    }
-
-    tryAppendFromRef();
-  }, [tasks, fitness, calendar.events, hiddenEvents]);
-
-  useEffect(() => {
     const id = window.setInterval(() => {
-      setDayLog((prev) => {
-        if (!prev.startedAt) return prev;
-        const snap = makeSnapshotFromDoneBy(doneByRef.current);
-        const last = prev.snapshots[prev.snapshots.length - 1];
-        if (!shouldAppendSnapshot(last, snap)) return prev;
-        const next = {
-          ...prev,
-          snapshots: [...prev.snapshots, snap],
-        };
-        saveDayLog(localDateKey(), next);
-        return next;
-      });
-    }, 5 * 60 * 1000);
+      setClockTick((n) => n + 1);
+    }, 60 * 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!dayLog.startedAt) return;
+    setDayLog((prev) => {
+      if (!prev.startedAt) return prev;
+      const snap = makeSnapshotFromDoneBy(computeDoneByTime());
+      const last = prev.snapshots[prev.snapshots.length - 1];
+      if (!shouldAppendSnapshot(last, snap)) return prev;
+      const next = {
+        ...prev,
+        snapshots: [...prev.snapshots, snap],
+      };
+      saveDayLog(localDateKey(), next);
+      return next;
+    });
+  }, [
+    tasks,
+    fitness,
+    calendar.events,
+    hiddenEvents,
+    clockTick,
+    dayLog.startedAt,
+    dayLog.snapshots.length,
+  ]);
 
   useEffect(() => {
     const el = scrollSentinelRef.current;
@@ -500,11 +491,6 @@ export default function Dashboard() {
   }
 
   const doneBy = computeDoneByTime();
-  doneByRef.current = {
-    timeStr: doneBy.timeStr,
-    doneAtMs: doneBy.doneAtMs,
-    overflow: doneBy.overflow,
-  };
 
   function handleStartMyDay() {
     const by = computeDoneByTime();

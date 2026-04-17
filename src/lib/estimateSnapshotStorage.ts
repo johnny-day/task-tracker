@@ -7,7 +7,14 @@
  */
 
 export const SNAPSHOT_STORAGE_PREFIX = "tasktracker:estimateSnapshots:";
-export const SNAPSHOT_THRESHOLD_MS = 30 * 60 * 1000;
+/** Compare in whole minutes so sub-minute noise never blocks a real 30+ min move. */
+export const SNAPSHOT_THRESHOLD_MINUTES = 30;
+
+/** Wall-clock instant for comparisons; null if unknown / overflow with no instant. */
+export function normalizeDoneInstant(doneAtMs: number | null): number | null {
+  if (doneAtMs === null || !Number.isFinite(doneAtMs)) return null;
+  return Math.floor(doneAtMs / 60000);
+}
 
 export type EstimateSnapshot = {
   recordedAt: string;
@@ -92,9 +99,11 @@ export function shouldAppendSnapshot(
 ): boolean {
   if (!last) return true;
   if (last.overflow !== next.overflow) return true;
-  if (last.doneAtMs === null && next.doneAtMs === null) return false;
-  if (last.doneAtMs === null || next.doneAtMs === null) return true;
-  return Math.abs(next.doneAtMs - last.doneAtMs) >= SNAPSHOT_THRESHOLD_MS;
+  const a = normalizeDoneInstant(last.doneAtMs);
+  const b = normalizeDoneInstant(next.doneAtMs);
+  if (a === null && b === null) return false;
+  if (a === null || b === null) return true;
+  return Math.abs(b - a) >= SNAPSHOT_THRESHOLD_MINUTES;
 }
 
 export function makeSnapshotFromDoneBy(doneBy: {

@@ -41,8 +41,10 @@ export default function EstimateSnapshotTimeline({
           <p className="text-xs text-text-muted mt-1 max-w-xl">
             Saved on this device only. We add a point when your estimated
             &quot;done by&quot; time moves by{" "}
-            <strong className="text-text">30 minutes or more</strong>. Resets
-            at local midnight.
+            <strong className="text-text">30 minutes or more</strong> (rounded
+            to the clock minute). We also check about once a minute so the day
+            sliding forward can still create a new point. Resets at local
+            midnight.
           </p>
         </div>
         <button
