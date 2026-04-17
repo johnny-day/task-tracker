@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { CalendarEvent, Task } from "@/lib/types";
 import {
   createEmptyEstimateDayLog,
@@ -17,6 +17,8 @@ import TaskCard from "./components/TaskCard";
 import FitnessWidget from "./components/FitnessWidget";
 import CalendarTimeline from "./components/CalendarTimeline";
 import EstimateSnapshotTimeline from "./components/EstimateSnapshotTimeline";
+import StartMyDayUrlSync from "./components/StartMyDayUrlSync";
+import { START_MY_DAY_EVENT } from "./components/StartMyDayNavButton";
 
 interface FitnessData {
   activeCalories: number;
@@ -64,7 +66,7 @@ function blocksOverlap(a: TimeBlock, b: TimeBlock): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
-export default function Dashboard() {
+function Dashboard() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [fitness, setFitness] = useState<FitnessData | null>(null);
   const [calendar, setCalendar] = useState<CalendarData>({
@@ -82,6 +84,7 @@ export default function Dashboard() {
   const [dayLog, setDayLog] = useState<EstimateDayLog>(createEmptyEstimateDayLog);
   /** Bumps once per minute so passive “now” can move the done-by estimate without a task edit. */
   const [clockTick, setClockTick] = useState(0);
+  const handleStartMyDayRef = useRef<(() => void) | null>(null);
 
   const loadHiddenEvents = useCallback(async () => {
     const res = await fetch("/api/hidden-events");
@@ -211,6 +214,14 @@ export default function Dashboard() {
       setClockTick((n) => n + 1);
     }, 60 * 1000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const onEvt = () => {
+      handleStartMyDayRef.current?.();
+    };
+    window.addEventListener(START_MY_DAY_EVENT, onEvt);
+    return () => window.removeEventListener(START_MY_DAY_EVENT, onEvt);
   }, []);
 
   useEffect(() => {
@@ -499,6 +510,8 @@ export default function Dashboard() {
     setDayLog(next);
   }
 
+  handleStartMyDayRef.current = handleStartMyDay;
+
   return (
     <div className="space-y-6">
       {/* Hero: Estimated Done Time (sticky; compacts when scrolled) */}
@@ -596,6 +609,27 @@ export default function Dashboard() {
             </div>
           </>
         )}
+        <div
+          className={`mt-3 border-t border-border/60 w-full max-w-lg mx-auto flex flex-col items-center gap-1 ${
+            compactHero ? "pt-2 px-1" : "pt-4 px-2"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={handleStartMyDay}
+            className={`w-full font-bold uppercase tracking-wide rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors shadow-md ${
+              compactHero ? "py-2 text-[11px]" : "py-3 text-xs sm:text-sm"
+            }`}
+          >
+            Start my day — save today&apos;s timeline
+          </button>
+          {typeof process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA === "string" &&
+            process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.length >= 7 && (
+              <span className="text-[10px] text-text-muted tabular-nums">
+                Build {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7)}
+              </span>
+            )}
+        </div>
       </div>
 
       <div ref={scrollSentinelRef} className="h-px w-full shrink-0" aria-hidden />
@@ -861,5 +895,20 @@ export default function Dashboard() {
         )}
       </details>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-6xl mx-auto px-4 py-16 text-center text-text-muted">
+          Loading dashboard…
+        </div>
+      }
+    >
+      <StartMyDayUrlSync />
+      <Dashboard />
+    </Suspense>
   );
 }
