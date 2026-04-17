@@ -33,7 +33,8 @@ export default function TaskForm({
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [minutes, setMinutes] = useState(initialValues?.estimatedMinutes ?? 30);
   const [priority, setPriority] = useState(initialValues?.priority ?? 2);
-  const [category, setCategory] = useState(initialValues?.category ?? "general");
+  const [isLongTerm, setIsLongTerm] = useState(initialValues?.category === "longterm");
+  const category = isLongTerm ? "longterm" : "general";
   const [calEventId, setCalEventId] = useState<string | null>(
     initialValues?.calendarEventId ?? null
   );
@@ -52,7 +53,7 @@ export default function TaskForm({
       setTitle("");
       setMinutes(30);
       setPriority(2);
-      setCategory("general");
+      setIsLongTerm(false);
       setCalEventId(null);
     }
   }
@@ -95,15 +96,16 @@ export default function TaskForm({
             ))}
           </select>
         </div>
-        <div className="flex-1 min-w-[120px]">
-          <label className="block text-xs text-text-muted mb-1">Category</label>
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="general"
-            className="w-full px-3 py-1.5 rounded-lg border border-border bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+        <div className="flex items-end min-w-[120px] pb-0.5">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isLongTerm}
+              onChange={(e) => setIsLongTerm(e.target.checked)}
+              className="accent-primary w-4 h-4"
+            />
+            <span className="text-sm text-text">Long term</span>
+          </label>
         </div>
       </div>
       {calendarEvents.length > 0 && (

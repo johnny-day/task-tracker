@@ -66,6 +66,11 @@ export default function TaskCard({
                 Scheduled
               </span>
             )}
+            {task.category === "longterm" && (
+              <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-border text-text-muted font-medium">
+                Long Term
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-text-muted">
             {editingMinutes ? (

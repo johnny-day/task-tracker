@@ -514,6 +514,16 @@ function Dashboard() {
     loadCompletedToday();
   }
 
+  async function moveTaskToCategory(taskId: string, category: string) {
+    await fetch(`/api/tasks/${taskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category, scheduledStart: null, calendarEventId: null }),
+    });
+    loadTasks();
+    loadCompletedToday();
+  }
+
   const hiddenIds = new Set(hiddenEvents.map((h) => h.eventId));
   const visibleEvents = calendar.events.filter((e) => !hiddenIds.has(e.id));
 
@@ -535,9 +545,10 @@ function Dashboard() {
     });
   }
 
-  const pinnedTasks = tasks.filter((t) => t.scheduledStart && t.status !== "done");
-  const unscheduledTasks = tasks.filter((t) => !t.scheduledStart && !t.calendarEventId && t.status !== "done");
-  const scheduledTasks = tasks.filter((t) => t.calendarEventId && t.status !== "done");
+  const longTermTasks = tasks.filter((t) => t.category === "longterm" && t.status !== "done");
+  const pinnedTasks = tasks.filter((t) => t.scheduledStart && t.status !== "done" && t.category !== "longterm");
+  const unscheduledTasks = tasks.filter((t) => !t.scheduledStart && !t.calendarEventId && t.status !== "done" && t.category !== "longterm");
+  const scheduledTasks = tasks.filter((t) => t.calendarEventId && t.status !== "done" && t.category !== "longterm");
 
   function computeDoneByTime() {
     const now = new Date();
@@ -1110,11 +1121,18 @@ function Dashboard() {
             onDrop={(e) => {
               e.preventDefault();
               const taskId = e.dataTransfer.getData("text/task-id");
-              if (taskId) scheduleTask(taskId, null);
+              if (taskId) {
+                const fromLongTerm = longTermTasks.some((t) => t.id === taskId);
+                if (fromLongTerm) {
+                  moveTaskToCategory(taskId, "general");
+                } else {
+                  scheduleTask(taskId, null);
+                }
+              }
             }}
           >
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
-              Unscheduled Tasks
+              Today&apos;s Tasks
               <span className="ml-2 text-xs font-normal">
                 ({unscheduledTasks.length})
               </span>
@@ -1129,6 +1147,47 @@ function Dashboard() {
             ) : (
               <div className="space-y-2">
                 {unscheduledTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onStatusChange={updateTaskStatus}
+                    onDelete={deleteTask}
+                    onEdit={setEditingTask}
+                    onUpdateMinutes={updateMinutes}
+                    draggable
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Long Term backlog (same column, below unscheduled) */}
+          <div
+            className="bg-card border border-border rounded-lg p-5 mt-4"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const taskId = e.dataTransfer.getData("text/task-id");
+              if (taskId) moveTaskToCategory(taskId, "longterm");
+            }}
+          >
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-1">
+              Long Term
+              <span className="ml-2 text-xs font-normal">
+                ({longTermTasks.length})
+              </span>
+            </h2>
+            <p className="text-xs text-text-muted mb-3">
+              {longTermTasks.length > 0
+                ? `${longTermTasks.reduce((s, t) => s + t.estimatedMinutes, 0)} min total · drag here to defer, drag out to do today`
+                : "Drag tasks here to defer them from today's schedule"}
+            </p>
+            {longTermTasks.length > 0 && (
+              <div className="space-y-2">
+                {longTermTasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
