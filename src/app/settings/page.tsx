@@ -86,7 +86,10 @@ export default function SettingsPage() {
         calorieGoal: settings.calorieGoal,
         calBurnRate: settings.calBurnRate,
         burnRateOnboardingDone: true,
-        fitnessTimeZone: settings.fitnessTimeZone,
+        fitnessTimeZone:
+          settings.fitnessTimeZone && settings.fitnessTimeZone.trim() !== ""
+            ? settings.fitnessTimeZone.trim()
+            : null,
       }),
     });
     await loadSettings();
@@ -379,12 +382,22 @@ export default function SettingsPage() {
                   e.target.value.trim() === "" ? null : e.target.value,
               })
             }
-            placeholder="e.g. America/Chicago"
+            placeholder="Type here, then Save — example: America/New_York"
             className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text font-mono text-sm"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
           />
+          {settings.fitnessTimeZone ? (
+            <p className="text-xs text-success mt-1.5 font-medium">
+              Saved in the database as: {settings.fitnessTimeZone}
+            </p>
+          ) : (
+            <p className="text-xs text-warning mt-1.5 font-medium">
+              Nothing saved yet — gray text in the box is only a hint, not your
+              value.
+            </p>
+          )}
           <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
             Use this if your Apple Shortcut only sends{" "}
             <code className="bg-border/60 px-1 rounded">activeCalories</code>{" "}
