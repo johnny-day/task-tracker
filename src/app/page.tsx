@@ -105,6 +105,8 @@ function Dashboard() {
   /** Bumps once per minute so passive “now” can move the done-by estimate without a task edit. */
   const [clockTick, setClockTick] = useState(0);
   const handleStartMyDayRef = useRef<(() => void) | null>(null);
+  const dayLogRef = useRef(dayLog);
+  dayLogRef.current = dayLog;
 
   const loadHiddenEvents = useCallback(async () => {
     const res = await fetch("/api/hidden-events");
@@ -324,8 +326,15 @@ function Dashboard() {
     return () => window.removeEventListener(START_MY_DAY_EVENT, onEvt);
   }, []);
 
+  /**
+   * Append a snapshot when the schedule / fitness / clock moves the estimate.
+   * Do NOT depend on `dayLog.startedAt` or snapshot count: when "Start my day" sets
+   * `startedAt`, that would re-run this effect in the same turn and the functional
+   * updater could still see `prev` without `startedAt`, returning `prev` and wiping
+   * the new day log (button looked like it did nothing).
+   */
   useEffect(() => {
-    if (!dayLog.startedAt) return;
+    if (!dayLogRef.current.startedAt) return;
     setDayLog((prev) => {
       if (!prev.startedAt) return prev;
       const snap = makeSnapshotFromDoneBy(computeDoneByTime());
@@ -338,16 +347,7 @@ function Dashboard() {
       saveDayLog(localDateKey(), next);
       return next;
     });
-  }, [
-    tasks,
-    fitness,
-    fitnessMeta,
-    calendar.events,
-    hiddenEvents,
-    clockTick,
-    dayLog.startedAt,
-    dayLog.snapshots.length,
-  ]);
+  }, [tasks, fitness, fitnessMeta, calendar.events, hiddenEvents, clockTick]);
 
   useEffect(() => {
     const el = scrollSentinelRef.current;
