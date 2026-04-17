@@ -174,26 +174,16 @@ function Dashboard() {
       return;
     }
     const calorieGoal = Number(o.calorieGoal);
-    let remaining = Number(o.remaining);
     const activeCalories = Number(o.activeCalories);
     const calBurnRateNum = Number(o.calBurnRate);
-    if (
-      !Number.isFinite(calorieGoal) ||
-      !Number.isFinite(remaining) ||
-      !Number.isFinite(activeCalories)
-    ) {
+    if (!Number.isFinite(calorieGoal) || !Number.isFinite(activeCalories)) {
       setFitness(null);
       return;
     }
     const calBurn = Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4;
     const stale = o.shortcutDataStale === true;
-    /** Covers older API bugs or bad rows: cannot be "goal met" if burned is still below goal. */
-    if (!stale && remaining <= 0 && activeCalories < calorieGoal) {
-      remaining = Math.max(0, calorieGoal - activeCalories);
-    }
-    if (stale && remaining < calorieGoal && activeCalories <= 0) {
-      remaining = calorieGoal;
-    }
+    /** Always derive from goal − displayed burn so exercise minutes match the bar (ignore flaky `remaining` in JSON). */
+    const remaining = Math.max(0, calorieGoal - activeCalories);
     const exerciseMinutesLeft =
       remaining <= 0 ? 0 : Math.max(1, Math.ceil(remaining / calBurn));
     setFitness({
