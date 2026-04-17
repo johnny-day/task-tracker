@@ -149,8 +149,11 @@ function Dashboard() {
       0
     );
     const dayStart = startOfDay.toISOString();
+    const fitnessDebug =
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("FITNESS_DEBUG") === "1";
     const res = await fetch(
-      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}`,
+      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}${fitnessDebug ? "&debug=1" : ""}`,
       { cache: "no-store" }
     );
     if (!res.ok) {
@@ -163,6 +166,9 @@ function Dashboard() {
       return;
     }
     const o = data as Record<string, unknown>;
+    if (o._debug && typeof o._debug === "object") {
+      console.info("[fitness debug]", o._debug);
+    }
     if (typeof o.error === "string") {
       setFitness(null);
       return;

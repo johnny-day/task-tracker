@@ -32,10 +32,12 @@ export async function GET(req: NextRequest) {
     Number.isFinite(Number(rawRate)) ? Number(rawRate) : 4.0
   );
 
-  let burned = Number(log?.activeCalories ?? 0);
-  if (!Number.isFinite(burned) || burned < 0) burned = 0;
+  const storedActiveCalories = Number(log?.activeCalories ?? 0);
+  let burned = Number.isFinite(storedActiveCalories) && storedActiveCalories >= 0 ? storedActiveCalories : 0;
 
   const tz = searchParams.get("tz");
+  const logYmdInTz =
+    log && tz ? formatZonedYmd(log.updatedAt.getTime(), tz) : null;
 
   /**
    * Stale = no Shortcut write on this calendar day in the user's zone.
@@ -46,8 +48,7 @@ export async function GET(req: NextRequest) {
   let isShortcutStale = false;
   if (log) {
     if (tz) {
-      const logYmd = formatZonedYmd(log.updatedAt.getTime(), tz);
-      if (logYmd != null && logYmd < today) {
+      if (logYmdInTz != null && logYmdInTz < today) {
         isShortcutStale = true;
       }
     } else if (dayStartParam) {
@@ -72,22 +73,34 @@ export async function GET(req: NextRequest) {
     exerciseMinutesLeft = Number.isFinite(rawMinutes) ? Math.max(1, rawMinutes) : 1;
   }
 
-  return NextResponse.json(
-    {
-      date: today,
-      activeCalories: burned,
-      calorieGoal,
-      calBurnRate,
-      remaining,
-      exerciseMinutesLeft,
-      shortcutDataStale: isShortcutStale,
+  const payload: Record<string, unknown> = {
+    date: today,
+    activeCalories: burned,
+    calorieGoal,
+    calBurnRate,
+    remaining,
+    exerciseMinutesLeft,
+    shortcutDataStale: isShortcutStale,
+  };
+
+  if (searchParams.get("debug") === "1") {
+    payload._debug = {
+      requestedDate: today,
+      timeZone: tz,
+      logRowDate: log?.date ?? null,
+      logUpdatedAtIso: log?.updatedAt?.toISOString() ?? null,
+      logYmdInTimeZone: logYmdInTz,
+      storedActiveCalories: log != null ? storedActiveCalories : null,
+      isShortcutStale,
+      dayStartParam: dayStartParam ?? null,
+    };
+  }
+
+  return NextResponse.json(payload, {
+    headers: {
+      "Cache-Control": "no-store, max-age=0",
     },
-    {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
-    }
-  );
+  });
 }
 
 export async function POST(req: NextRequest) {
