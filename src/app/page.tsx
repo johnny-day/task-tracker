@@ -371,6 +371,12 @@ function Dashboard() {
     };
   }, [markEstimateDepReady]);
 
+  /** Re-fetch fitness after settings hydrate so `fitnessTimeZone` applies (avoids first paint using browser-only context). */
+  useEffect(() => {
+    if (!fitnessMeta) return;
+    void loadFitness();
+  }, [fitnessMeta, loadFitness]);
+
   useEffect(() => {
     const id = window.setInterval(() => {
       setClockTick((n) => n + 1);
