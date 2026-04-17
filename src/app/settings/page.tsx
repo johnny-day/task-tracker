@@ -20,6 +20,7 @@ interface AuthStatus {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [apiKeys, setApiKeys] = useState<MaskedApiKey[]>([]);
   const [newKeyLabel, setNewKeyLabel] = useState("");
   const [newKeyValue, setNewKeyValue] = useState<string | null>(null);
@@ -29,8 +30,27 @@ export default function SettingsPage() {
   const [testSent, setTestSent] = useState(false);
 
   const loadSettings = useCallback(async () => {
+    setLoadError(null);
     const res = await fetch("/api/settings");
-    setSettings(await res.json());
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setLoadError(
+        typeof data?.error === "string"
+          ? data.error
+          : `Could not load settings (HTTP ${res.status}).`
+      );
+      setSettings(null);
+      return;
+    }
+    if (data?.error) {
+      setLoadError(String(data.error));
+      setSettings(null);
+      return;
+    }
+    setSettings({
+      ...data,
+      burnRateOnboardingDone: Boolean(data.burnRateOnboardingDone),
+    });
   }, []);
 
   const loadApiKeys = useCallback(async () => {
@@ -114,7 +134,20 @@ export default function SettingsPage() {
 
   if (!settings) {
     return (
-      <div className="text-center py-12 text-text-muted">Loading...</div>
+      <div className="max-w-lg mx-auto text-center py-12 space-y-3">
+        <p className="text-text-muted">
+          {loadError ? loadError : "Loading…"}
+        </p>
+        {loadError && (
+          <button
+            type="button"
+            onClick={() => loadSettings()}
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover"
+          >
+            Try again
+          </button>
+        )}
+      </div>
     );
   }
 
