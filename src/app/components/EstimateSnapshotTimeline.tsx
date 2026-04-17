@@ -36,7 +36,7 @@ export default function EstimateSnapshotTimeline({
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
         <div>
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-            Today&apos;s estimate timeline
+            Done-by time tracker
           </h2>
           <p className="text-xs text-text-muted mt-1 max-w-xl">
             Saved on this device only. We add a point when your estimated

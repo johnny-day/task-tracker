@@ -612,8 +612,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <EstimateSnapshotTimeline dayLog={dayLog} onStartMyDay={handleStartMyDay} />
-
       <div ref={scrollSentinelRef} className="h-px w-full shrink-0" aria-hidden />
 
       <div className="flex items-center justify-between">
@@ -828,6 +826,11 @@ export default function Dashboard() {
               </>
             )}
           </div>
+
+          <EstimateSnapshotTimeline
+            dayLog={dayLog}
+            onStartMyDay={handleStartMyDay}
+          />
         </div>
       </div>
 
