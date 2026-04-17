@@ -25,3 +25,71 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
+
+/* Start my day — brief confetti burst + fly-to-hero (respects prefers-reduced-motion in JS) */
+.done-by-confetti-layer {
+  overflow: hidden;
+}
+
+.done-by-confetti-particle {
+  position: fixed;
+  left: 50%;
+  top: 36%;
+  width: 7px;
+  height: 9px;
+  border-radius: 2px;
+  opacity: 0;
+  z-index: 205;
+  animation: done-by-confetti-pop 1.25s ease-out var(--delay, 0s) forwards;
+  transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateY(0);
+}
+
+@keyframes done-by-confetti-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateY(0) scale(0.55);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--a, 0deg)) translateY(var(--d, 240px))
+      scale(0.85);
+  }
+}
+
+.done-by-confetti-layer--mega {
+  background: radial-gradient(
+    ellipse 85% 55% at 50% 38%,
+    color-mix(in srgb, var(--color-success) 18%, transparent) 0%,
+    transparent 65%
+  );
+}
+
+.done-by-confetti-particle--mega {
+  width: 9px;
+  height: 12px;
+  border-radius: 3px;
+  animation: done-by-confetti-pop-mega 1.55s ease-out var(--delay, 0s) forwards;
+  transform: translate(-50%, -50%) translateX(0) rotate(var(--a, 0deg)) translateY(0);
+}
+
+@keyframes done-by-confetti-pop-mega {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateX(0) rotate(var(--a, 0deg)) translateY(0)
+      scale(0.45);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateX(calc(var(--x, 0px) * 0.35))
+      rotate(var(--a, 0deg)) translateY(0) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateX(var(--x, 0px)) rotate(var(--a, 0deg))
+      translateY(var(--d, 280px)) scale(0.88);
+  }
+}

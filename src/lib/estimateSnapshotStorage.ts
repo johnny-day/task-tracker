@@ -118,3 +118,17 @@ export function makeSnapshotFromDoneBy(doneBy: {
     overflow: doneBy.overflow,
   };
 }
+
+/** Remove one snapshot by index (no-op if out of range). */
+export function withoutSnapshotAt(log: EstimateDayLog, index: number): EstimateDayLog {
+  if (index < 0 || index >= log.snapshots.length) return log;
+  return {
+    ...log,
+    snapshots: log.snapshots.filter((_, i) => i !== index),
+  };
+}
+
+/** Keep the same day / start time but drop all recorded points. */
+export function withSnapshotsCleared(log: EstimateDayLog): EstimateDayLog {
+  return { ...log, snapshots: [] };
+}

@@ -10,6 +10,8 @@ import {
   makeSnapshotFromDoneBy,
   saveDayLog,
   shouldAppendSnapshot,
+  withSnapshotsCleared,
+  withoutSnapshotAt,
   type EstimateDayLog,
 } from "@/lib/estimateSnapshotStorage";
 import TaskForm from "./components/TaskForm";
@@ -18,6 +20,9 @@ import FitnessWidget from "./components/FitnessWidget";
 import CalendarTimeline from "./components/CalendarTimeline";
 import EstimateSnapshotTimeline from "./components/EstimateSnapshotTimeline";
 import StartMyDayUrlSync from "./components/StartMyDayUrlSync";
+import DoneByConfettiOverlay, {
+  type DoneByConfettiVariant,
+} from "./components/DoneByConfettiOverlay";
 import { START_MY_DAY_EVENT } from "./components/StartMyDayNavButton";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
 
@@ -105,19 +110,65 @@ function Dashboard() {
   /** Bumps once per minute so passive “now” can move the done-by estimate without a task edit. */
   const [clockTick, setClockTick] = useState(0);
   const handleStartMyDayRef = useRef<(() => void) | null>(null);
+  const celebrationTargetRef = useRef<HTMLDivElement>(null);
+  const [startDayConfetti, setStartDayConfetti] = useState<{
+    key: string;
+    headline: string;
+    subtitle: string;
+    nowClock: string;
+    variant: DoneByConfettiVariant;
+  } | null>(null);
+  const clearStartDayConfetti = useCallback(() => setStartDayConfetti(null), []);
+
+  type EstimateDepKey = "tasks" | "fitness" | "calendar" | "hidden" | "settingsForEstimate";
+  const [estimateDepReady, setEstimateDepReady] = useState<Record<EstimateDepKey, boolean>>({
+    tasks: false,
+    fitness: false,
+    calendar: false,
+    hidden: false,
+    settingsForEstimate: false,
+  });
+  const markEstimateDepReady = useCallback((key: EstimateDepKey) => {
+    setEstimateDepReady((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
+  const estimateInputsReady =
+    estimateDepReady.tasks &&
+    estimateDepReady.fitness &&
+    estimateDepReady.calendar &&
+    estimateDepReady.hidden &&
+    estimateDepReady.settingsForEstimate;
+
+  /** Prior done-by instant for “estimate moved ≥30 min earlier” confetti. */
+  const prevDoneAtMsRef = useRef<number | null>(null);
+  const prevDoneForDayRef = useRef(false);
+  const celebrationBaselineSeededRef = useRef(false);
+  /** Bumped when snapshot history is cleared so celebration baselines re-seed without a done-by change. */
+  const [estimateTrackingEpoch, setEstimateTrackingEpoch] = useState(0);
   const dayLogRef = useRef(dayLog);
   dayLogRef.current = dayLog;
 
   const loadHiddenEvents = useCallback(async () => {
-    const res = await fetch("/api/hidden-events");
-    setHiddenEvents(await res.json());
-  }, []);
+    try {
+      const res = await fetch("/api/hidden-events");
+      setHiddenEvents(await res.json());
+    } catch {
+      setHiddenEvents([]);
+    } finally {
+      markEstimateDepReady("hidden");
+    }
+  }, [markEstimateDepReady]);
 
   const loadTasks = useCallback(async () => {
-    const res = await fetch("/api/tasks?status=pending&status=in_progress");
-    const data = await res.json();
-    setTasks(Array.isArray(data) ? data : []);
-  }, []);
+    try {
+      const res = await fetch("/api/tasks?status=pending&status=in_progress");
+      const data = await res.json();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch {
+      setTasks([]);
+    } finally {
+      markEstimateDepReady("tasks");
+    }
+  }, [markEstimateDepReady]);
 
   const loadCompletedToday = useCallback(async () => {
     const now = new Date();
@@ -150,85 +201,97 @@ function Dashboard() {
   }, []);
 
   const loadFitness = useCallback(async () => {
-    const localDate = new Date();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    /** Same calendar date rule as Shortcut POST when it uses `timezone` + en-CA. */
-    const dateStr = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-    const startOfDay = new Date(
-      localDate.getFullYear(),
-      localDate.getMonth(),
-      localDate.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-    const dayStart = startOfDay.toISOString();
-    const fitnessDebug =
-      typeof window !== "undefined" &&
-      window.localStorage.getItem("FITNESS_DEBUG") === "1";
-    const cb =
-      typeof process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA === "string" &&
-      process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.length >= 7
-        ? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7)
-        : "";
-    const res = await fetch(
-      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}${fitnessDebug ? "&debug=1" : ""}${cb ? `&cb=${encodeURIComponent(cb)}` : ""}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) {
+    try {
+      const localDate = new Date();
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      /** Same calendar date rule as Shortcut POST when it uses `timezone` + en-CA. */
+      const dateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const startOfDay = new Date(
+        localDate.getFullYear(),
+        localDate.getMonth(),
+        localDate.getDate(),
+        0,
+        0,
+        0,
+        0
+      );
+      const dayStart = startOfDay.toISOString();
+      const fitnessDebug =
+        typeof window !== "undefined" &&
+        window.localStorage.getItem("FITNESS_DEBUG") === "1";
+      const cb =
+        typeof process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA === "string" &&
+        process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.length >= 7
+          ? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.slice(0, 7)
+          : "";
+      const res = await fetch(
+        `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}${fitnessDebug ? "&debug=1" : ""}${cb ? `&cb=${encodeURIComponent(cb)}` : ""}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) {
+        setFitness(null);
+        return;
+      }
+      const data: unknown = await res.json();
+      if (typeof data !== "object" || data === null || Array.isArray(data)) {
+        setFitness(null);
+        return;
+      }
+      const o = data as Record<string, unknown>;
+      if (o._debug && typeof o._debug === "object") {
+        console.info("[fitness debug]", o._debug);
+      }
+      if (typeof o.error === "string") {
+        setFitness(null);
+        return;
+      }
+      const calorieGoal = pickFiniteNumber(o, ["calorieGoal", "calorie_goal"]);
+      const activeCalories = pickFiniteNumber(o, ["activeCalories", "active_calories"]);
+      const calBurnRateNum = pickFiniteNumber(o, ["calBurnRate", "cal_burn_rate"]);
+      if (!Number.isFinite(calorieGoal) || !Number.isFinite(activeCalories)) {
+        setFitness(null);
+        return;
+      }
+      const calBurn =
+        Number.isFinite(calBurnRateNum) && calBurnRateNum > 0 ? calBurnRateNum : 4;
+      const stale = o.shortcutDataStale === true;
+      /** Always derive from goal − displayed burn so exercise minutes match the bar (ignore flaky `remaining` in JSON). */
+      const remaining = Math.max(0, calorieGoal - activeCalories);
+      const exerciseMinutesLeft = exerciseMinutesFromBurnProgress(
+        calorieGoal,
+        activeCalories,
+        calBurn
+      );
+      setFitness({
+        activeCalories,
+        calorieGoal,
+        calBurnRate: calBurn,
+        remaining,
+        exerciseMinutesLeft,
+        shortcutDataStale: stale,
+      });
+    } catch {
       setFitness(null);
-      return;
+    } finally {
+      markEstimateDepReady("fitness");
     }
-    const data: unknown = await res.json();
-    if (typeof data !== "object" || data === null || Array.isArray(data)) {
-      setFitness(null);
-      return;
-    }
-    const o = data as Record<string, unknown>;
-    if (o._debug && typeof o._debug === "object") {
-      console.info("[fitness debug]", o._debug);
-    }
-    if (typeof o.error === "string") {
-      setFitness(null);
-      return;
-    }
-    const calorieGoal = pickFiniteNumber(o, ["calorieGoal", "calorie_goal"]);
-    const activeCalories = pickFiniteNumber(o, ["activeCalories", "active_calories"]);
-    const calBurnRateNum = pickFiniteNumber(o, ["calBurnRate", "cal_burn_rate"]);
-    if (!Number.isFinite(calorieGoal) || !Number.isFinite(activeCalories)) {
-      setFitness(null);
-      return;
-    }
-    const calBurn =
-      Number.isFinite(calBurnRateNum) && calBurnRateNum > 0 ? calBurnRateNum : 4;
-    const stale = o.shortcutDataStale === true;
-    /** Always derive from goal − displayed burn so exercise minutes match the bar (ignore flaky `remaining` in JSON). */
-    const remaining = Math.max(0, calorieGoal - activeCalories);
-    const exerciseMinutesLeft = exerciseMinutesFromBurnProgress(
-      calorieGoal,
-      activeCalories,
-      calBurn
-    );
-    setFitness({
-      activeCalories,
-      calorieGoal,
-      calBurnRate: calBurn,
-      remaining,
-      exerciseMinutesLeft,
-      shortcutDataStale: stale,
-    });
-  }, []);
+  }, [markEstimateDepReady]);
 
   const loadCalendar = useCallback(async () => {
-    const res = await fetch("/api/calendar");
-    setCalendar(await res.json());
-  }, []);
+    try {
+      const res = await fetch("/api/calendar");
+      setCalendar(await res.json());
+    } catch {
+      setCalendar({ events: [], connected: false });
+    } finally {
+      markEstimateDepReady("calendar");
+    }
+  }, [markEstimateDepReady]);
 
 
   useEffect(() => {
@@ -304,19 +367,22 @@ function Dashboard() {
         });
       } catch {
         /* ignore */
+      } finally {
+        if (!cancelled) markEstimateDepReady("settingsForEstimate");
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [markEstimateDepReady]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
       setClockTick((n) => n + 1);
+      void loadFitness();
     }, 60 * 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [loadFitness]);
 
   useEffect(() => {
     const onEvt = () => {
@@ -334,6 +400,7 @@ function Dashboard() {
    * the new day log (button looked like it did nothing).
    */
   useEffect(() => {
+    if (!estimateInputsReady) return;
     if (!dayLogRef.current.startedAt) return;
     setDayLog((prev) => {
       if (!prev.startedAt) return prev;
@@ -347,7 +414,15 @@ function Dashboard() {
       saveDayLog(localDateKey(), next);
       return next;
     });
-  }, [tasks, fitness, fitnessMeta, calendar.events, hiddenEvents, clockTick]);
+  }, [
+    estimateInputsReady,
+    tasks,
+    fitness,
+    fitnessMeta,
+    calendar.events,
+    hiddenEvents,
+    clockTick,
+  ]);
 
   useEffect(() => {
     const el = scrollSentinelRef.current;
@@ -617,13 +692,135 @@ function Dashboard() {
   }
 
   const doneBy = computeDoneByTime();
+  const doneByRef = useRef(doneBy);
+  doneByRef.current = doneBy;
+
+  function buildConfettiFromDoneBy(
+    by: ReturnType<typeof computeDoneByTime>
+  ): {
+    key: string;
+    headline: string;
+    subtitle: string;
+    nowClock: string;
+    variant: DoneByConfettiVariant;
+  } {
+    const now = new Date();
+    const headline =
+      by.totalMinutes === 0 && !by.hasRemainingEvents
+        ? "You're done for the day!"
+        : by.timeStr ?? "Not enough time today";
+    const subtitle = by.doneAtMs
+      ? new Date(by.doneAtMs).toLocaleDateString(undefined, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : now.toLocaleDateString(undefined, {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        });
+    const isDoneForDay = by.totalMinutes === 0 && !by.hasRemainingEvents;
+    return {
+      key: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      headline,
+      subtitle,
+      nowClock: now.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      variant: isDoneForDay ? "doneForDay" : "default",
+    };
+  }
+
+  useEffect(() => {
+    if (!estimateInputsReady) return;
+
+    const nextMs = doneBy.doneAtMs;
+    const isDoneForDay = doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents;
+
+    if (!celebrationBaselineSeededRef.current) {
+      celebrationBaselineSeededRef.current = true;
+      prevDoneAtMsRef.current = nextMs;
+      prevDoneForDayRef.current = isDoneForDay;
+      return;
+    }
+
+    const prevMs = prevDoneAtMsRef.current;
+    const wasDoneForDay = prevDoneForDayRef.current;
+
+    const crossedDoneForDay = !wasDoneForDay && isDoneForDay;
+    const improvedBy30 =
+      prevMs != null && nextMs != null && prevMs - nextMs >= 30 * 60 * 1000;
+
+    if (crossedDoneForDay || improvedBy30) {
+      setStartDayConfetti(buildConfettiFromDoneBy(doneByRef.current));
+    }
+
+    prevDoneAtMsRef.current = nextMs;
+    prevDoneForDayRef.current = isDoneForDay;
+  }, [
+    estimateInputsReady,
+    estimateTrackingEpoch,
+    doneBy.doneAtMs,
+    doneBy.totalMinutes,
+    doneBy.hasRemainingEvents,
+  ]);
 
   function handleStartMyDay() {
+    if (!estimateInputsReady) return;
     const by = computeDoneByTime();
+    setStartDayConfetti(buildConfettiFromDoneBy(by));
     const next = createStartedDayLog(makeSnapshotFromDoneBy(by));
     saveDayLog(localDateKey(), next);
     setDayLog(next);
   }
+
+  const removeSnapshotByIndex = useCallback((index: number) => {
+    setDayLog((prev) => {
+      const next = withoutSnapshotAt(prev, index);
+      saveDayLog(localDateKey(), next);
+      return next;
+    });
+  }, []);
+
+  const clearAllSnapshotPoints = useCallback(() => {
+    if (
+      !window.confirm(
+        "Remove all saved estimate points for today? Your day-start time stays — new 30+ minute moves will create new points."
+      )
+    ) {
+      return;
+    }
+    celebrationBaselineSeededRef.current = false;
+    prevDoneAtMsRef.current = null;
+    prevDoneForDayRef.current = false;
+    setEstimateTrackingEpoch((n) => n + 1);
+    setDayLog((prev) => {
+      const next = withSnapshotsCleared(prev);
+      saveDayLog(localDateKey(), next);
+      return next;
+    });
+  }, []);
+
+  const resetEstimateTrackingToday = useCallback(() => {
+    if (
+      !window.confirm(
+        "Reset done-by tracking for today? This clears your start time and every saved point. Tap Start my day when you want a fresh timeline."
+      )
+    ) {
+      return;
+    }
+    celebrationBaselineSeededRef.current = false;
+    prevDoneAtMsRef.current = null;
+    prevDoneForDayRef.current = false;
+    setEstimateTrackingEpoch((n) => n + 1);
+    const next = createEmptyEstimateDayLog();
+    saveDayLog(localDateKey(), next);
+    setDayLog(next);
+  }, []);
 
   handleStartMyDayRef.current = handleStartMyDay;
 
@@ -635,95 +832,115 @@ function Dashboard() {
           compactHero ? "py-2 px-2" : "py-8 px-4 rounded-lg border border-border"
         }`}
       >
-        {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
-          <p
-            className={`font-black text-success uppercase tracking-tight ${
-              compactHero ? "text-xl" : "text-4xl"
-            }`}
-          >
-            You&apos;re done for the day!
-          </p>
-        ) : (
-          <>
-            <p
-              className={`text-text-muted uppercase tracking-widest font-semibold ${
-                compactHero ? "text-[10px] mb-0.5" : "text-xs mb-2"
-              }`}
-            >
-              Estimated done by
-            </p>
-            {doneBy.timeStr ? (
+        <div ref={celebrationTargetRef} className="min-h-0">
+          {!estimateInputsReady ? (
+            <div className="mx-auto max-w-md px-1">
               <p
-                className={`font-black text-primary tracking-tight ${
-                  compactHero ? "text-2xl mb-1" : "text-6xl mb-4"
+                className={`text-text-muted font-medium ${
+                  compactHero ? "text-xs" : "text-sm"
                 }`}
               >
-                {doneBy.timeStr}
+                Calculating your done-by time…
               </p>
-            ) : (
               <p
-                className={`font-black text-danger uppercase tracking-tight ${
-                  compactHero ? "text-lg mb-1" : "text-3xl mb-4"
+                className={`text-text-muted/85 mt-2 leading-snug ${
+                  compactHero ? "text-[10px]" : "text-xs"
                 }`}
               >
-                Not enough time today
+                Loading tasks, calendar, activity, and burn settings first so
+                this number isn&apos;t wrong on the first paint.
               </p>
-            )}
-            <div
-              className={`flex items-center justify-center text-text-muted flex-wrap ${
-                compactHero ? "gap-x-2 gap-y-0.5 text-[10px]" : "gap-5 text-sm"
-              }`}
-            >
-              <span>
-                <span
-                  className={`font-bold text-calendar ${
-                    compactHero ? "" : "text-base"
-                  }`}
-                >
-                  {doneBy.remainingMeetingMinutes}
-                </span>{" "}
-                min meetings
-              </span>
-              <span className="text-border">|</span>
-              <span>
-                <span
-                  className={`font-bold text-fitness ${
-                    compactHero ? "" : "text-base"
-                  }`}
-                >
-                  {doneBy.exerciseMinutes}
-                </span>{" "}
-                min exercise
-              </span>
-              <span className="text-border">|</span>
-              <span>
-                <span
-                  className={`font-bold text-primary ${
-                    compactHero ? "" : "text-base"
-                  }`}
-                >
-                  {doneBy.taskMinutes}
-                </span>{" "}
-                min tasks
-              </span>
-              {doneBy.doubleBookedMinutes > 0 && (
-                <>
-                  <span className="text-border">|</span>
-                  <span>
-                    <span
-                      className={`font-bold text-success ${
-                        compactHero ? "" : "text-base"
-                      }`}
-                    >
-                      -{doneBy.doubleBookedMinutes}
-                    </span>{" "}
-                    min overlap
-                  </span>
-                </>
-              )}
             </div>
-          </>
-        )}
+          ) : doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
+            <p
+              className={`font-black text-success uppercase tracking-tight ${
+                compactHero ? "text-xl" : "text-4xl"
+              }`}
+            >
+              You&apos;re done for the day!
+            </p>
+          ) : (
+            <>
+              <p
+                className={`text-text-muted uppercase tracking-widest font-semibold ${
+                  compactHero ? "text-[10px] mb-0.5" : "text-xs mb-2"
+                }`}
+              >
+                Estimated done by
+              </p>
+              {doneBy.timeStr ? (
+                <p
+                  className={`font-black text-primary tracking-tight ${
+                    compactHero ? "text-2xl mb-1" : "text-6xl mb-4"
+                  }`}
+                >
+                  {doneBy.timeStr}
+                </p>
+              ) : (
+                <p
+                  className={`font-black text-danger uppercase tracking-tight ${
+                    compactHero ? "text-lg mb-1" : "text-3xl mb-4"
+                  }`}
+                >
+                  Not enough time today
+                </p>
+              )}
+              <div
+                className={`flex items-center justify-center text-text-muted flex-wrap ${
+                  compactHero ? "gap-x-2 gap-y-0.5 text-[10px]" : "gap-5 text-sm"
+                }`}
+              >
+                <span>
+                  <span
+                    className={`font-bold text-calendar ${
+                      compactHero ? "" : "text-base"
+                    }`}
+                  >
+                    {doneBy.remainingMeetingMinutes}
+                  </span>{" "}
+                  min meetings
+                </span>
+                <span className="text-border">|</span>
+                <span>
+                  <span
+                    className={`font-bold text-fitness ${
+                      compactHero ? "" : "text-base"
+                    }`}
+                  >
+                    {doneBy.exerciseMinutes}
+                  </span>{" "}
+                  min exercise
+                </span>
+                <span className="text-border">|</span>
+                <span>
+                  <span
+                    className={`font-bold text-primary ${
+                      compactHero ? "" : "text-base"
+                    }`}
+                  >
+                    {doneBy.taskMinutes}
+                  </span>{" "}
+                  min tasks
+                </span>
+                {doneBy.doubleBookedMinutes > 0 && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span>
+                      <span
+                        className={`font-bold text-success ${
+                          compactHero ? "" : "text-base"
+                        }`}
+                      >
+                        -{doneBy.doubleBookedMinutes}
+                      </span>{" "}
+                      min overlap
+                    </span>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
         <div
           className={`mt-3 border-t border-border/60 w-full max-w-lg mx-auto flex flex-col items-center gap-1 ${
             compactHero ? "pt-2 px-1" : "pt-4 px-2"
@@ -732,7 +949,13 @@ function Dashboard() {
           <button
             type="button"
             onClick={handleStartMyDay}
-            className={`w-full font-bold uppercase tracking-wide rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors shadow-md ${
+            disabled={!estimateInputsReady}
+            title={
+              !estimateInputsReady
+                ? "Still loading data needed for an accurate estimate."
+                : undefined
+            }
+            className={`w-full font-bold uppercase tracking-wide rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors shadow-md disabled:cursor-not-allowed disabled:opacity-45 ${
               compactHero ? "py-2 text-[11px]" : "py-3 text-xs sm:text-sm"
             }`}
           >
@@ -761,7 +984,13 @@ function Dashboard() {
           <button
             type="button"
             onClick={handleStartMyDay}
-            className="px-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary-light transition-colors font-medium text-sm"
+            disabled={!estimateInputsReady}
+            title={
+              !estimateInputsReady
+                ? "Still loading data needed for an accurate estimate."
+                : undefined
+            }
+            className="px-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary-light transition-colors font-medium text-sm disabled:cursor-not-allowed disabled:opacity-45"
           >
             Start my day
           </button>
@@ -919,7 +1148,12 @@ function Dashboard() {
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
               Completion Estimate
             </h2>
-            {doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
+            {!estimateInputsReady ? (
+              <p className="text-sm text-text-muted leading-relaxed">
+                Finishing load of tasks, calendar, activity, and settings — your
+                done-by time and breakdown will show here in a moment.
+              </p>
+            ) : doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents ? (
               <p className="text-success font-medium">
                 All tasks done! You&apos;re free.
               </p>
@@ -976,6 +1210,10 @@ function Dashboard() {
               embedded
               dayLog={dayLog}
               onStartMyDay={handleStartMyDay}
+              startMyDayDisabled={!estimateInputsReady}
+              onRemoveSnapshot={removeSnapshotByIndex}
+              onClearAllSnapshots={clearAllSnapshotPoints}
+              onResetDayTracking={resetEstimateTrackingToday}
             />
           </div>
         </div>
@@ -1011,6 +1249,19 @@ function Dashboard() {
           </ul>
         )}
       </details>
+
+      {startDayConfetti && (
+        <DoneByConfettiOverlay
+          key={startDayConfetti.key}
+          show
+          targetRef={celebrationTargetRef}
+          headline={startDayConfetti.headline}
+          subtitle={startDayConfetti.subtitle}
+          nowClock={startDayConfetti.nowClock}
+          variant={startDayConfetti.variant}
+          onComplete={clearStartDayConfetti}
+        />
+      )}
     </div>
   );
 }

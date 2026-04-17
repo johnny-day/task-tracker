@@ -1,5 +1,5 @@
 import { exerciseMinutesFromBurnProgress } from "./fitnessExerciseMinutes";
-import { formatZonedYmd } from "./zonedDayStart";
+import { formatZonedYmd, getZonedDayStartMs } from "./zonedDayStart";
 
 export type FitnessLogInput = {
   date: string;
@@ -39,10 +39,20 @@ export function resolveFitnessFromLog(input: ResolveFitnessInput): ResolveFitnes
 
   const logYmdInTz = log && tz ? formatZonedYmd(log.updatedAt.getTime(), tz) : null;
 
+  /**
+   * Stale = last write was *before* local midnight of `today` in `tz`.
+   * Comparing `formatZonedYmd(updatedAt)` to `today` wrongly flags fresh syncs
+   * when UTC instant maps to the previous calendar date in that zone.
+   */
   let isShortcutStale = false;
   if (log) {
     if (tz) {
-      if (logYmdInTz != null && logYmdInTz < today) {
+      const dayStartMs = getZonedDayStartMs(today, tz);
+      if (dayStartMs != null) {
+        if (log.updatedAt.getTime() < dayStartMs) {
+          isShortcutStale = true;
+        }
+      } else if (logYmdInTz != null && logYmdInTz < today) {
         isShortcutStale = true;
       }
     } else if (dayStartParam) {

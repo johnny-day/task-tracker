@@ -41,6 +41,25 @@ assert.equal(fresh.activeCalories, 120);
 assert.equal(fresh.remaining, 580);
 assert.equal(fresh.exerciseMinutesLeft, 145);
 
+// After local midnight for `today`, even if the row was written at a UTC instant
+// that still maps to the *previous* calendar label in that zone, we trust it
+// once `updatedAt` is past `today` 00:00 in that zone (avoids false "stale").
+const afterMidnightChicago = resolveFitnessFromLog({
+  today: "2026-04-17",
+  tz: "America/Chicago",
+  dayStartParam: null,
+  log: {
+    date: "2026-04-17",
+    activeCalories: 266,
+    updatedAt: new Date("2026-04-17T06:00:00.000Z"),
+  },
+  calorieGoal: 700,
+  calBurnRate: 4,
+});
+assert.equal(afterMidnightChicago.shortcutDataStale, false);
+assert.equal(afterMidnightChicago.activeCalories, 266);
+assert.equal(afterMidnightChicago.exerciseMinutesLeft, 109);
+
 // No row yet
 const empty = resolveFitnessFromLog({
   today: "2026-04-17",
