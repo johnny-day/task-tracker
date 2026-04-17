@@ -47,6 +47,7 @@ export default function EstimateSnapshotTimeline({
   const snapshots = dayLog.snapshots;
   const canEditSnapshots = Boolean(onRemoveSnapshot);
   const hasTrackingData = started || snapshots.length > 0;
+  const blockStartMyDay = startMyDayDisabled || started;
 
   const rootClass = embedded
     ? "mt-5 pt-5 border-t border-border text-left"
@@ -74,15 +75,17 @@ export default function EstimateSnapshotTimeline({
           <button
             type="button"
             onClick={onStartMyDay}
-            disabled={startMyDayDisabled}
+            disabled={blockStartMyDay}
             title={
-              startMyDayDisabled
-                ? "Loading tasks, calendar, activity, and settings for your estimate…"
-                : undefined
+              started
+                ? "You already saved today’s timeline for this calendar day."
+                : startMyDayDisabled
+                  ? "Loading tasks, calendar, activity, and settings for your estimate…"
+                  : undefined
             }
             className="px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm whitespace-nowrap shadow-sm disabled:cursor-not-allowed disabled:opacity-45"
           >
-            Start my day
+            {started ? "Day started" : "Start my day"}
           </button>
         </div>
         <p className="text-xs text-text-muted max-w-xl">

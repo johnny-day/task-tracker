@@ -23,7 +23,11 @@ import StartMyDayUrlSync from "./components/StartMyDayUrlSync";
 import DoneByConfettiOverlay, {
   type DoneByConfettiVariant,
 } from "./components/DoneByConfettiOverlay";
-import { START_MY_DAY_EVENT } from "./components/StartMyDayNavButton";
+import {
+  DAY_LOG_MUTATED_EVENT,
+  DAY_TRACKING_STARTED_EVENT,
+  START_MY_DAY_EVENT,
+} from "./components/StartMyDayNavButton";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
 
 function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
@@ -325,6 +329,7 @@ function Dashboard() {
         if (!cancelled) {
           loadFitness();
           setDayLog(loadDayLog(localDateKey()));
+          window.dispatchEvent(new CustomEvent(DAY_LOG_MUTATED_EVENT));
           scheduleMidnightRefresh();
         }
       }, msUntilNextLocalMidnight());
@@ -336,6 +341,7 @@ function Dashboard() {
       if (document.visibilityState === "visible") {
         loadFitness();
         setDayLog(loadDayLog(localDateKey()));
+        window.dispatchEvent(new CustomEvent(DAY_LOG_MUTATED_EVENT));
       }
     }
     document.addEventListener("visibilitychange", onVisible);
@@ -695,6 +701,8 @@ function Dashboard() {
   const doneByRef = useRef(doneBy);
   doneByRef.current = doneBy;
 
+  const dayAlreadyStarted = Boolean(dayLog.startedAt);
+
   function buildConfettiFromDoneBy(
     by: ReturnType<typeof computeDoneByTime>
   ): {
@@ -771,11 +779,13 @@ function Dashboard() {
 
   function handleStartMyDay() {
     if (!estimateInputsReady) return;
+    if (dayLogRef.current.startedAt) return;
     const by = computeDoneByTime();
     setStartDayConfetti(buildConfettiFromDoneBy(by));
     const next = createStartedDayLog(makeSnapshotFromDoneBy(by));
     saveDayLog(localDateKey(), next);
     setDayLog(next);
+    window.dispatchEvent(new CustomEvent(DAY_TRACKING_STARTED_EVENT));
   }
 
   const removeSnapshotByIndex = useCallback((index: number) => {
@@ -820,6 +830,7 @@ function Dashboard() {
     const next = createEmptyEstimateDayLog();
     saveDayLog(localDateKey(), next);
     setDayLog(next);
+    window.dispatchEvent(new CustomEvent(DAY_LOG_MUTATED_EVENT));
   }, []);
 
   handleStartMyDayRef.current = handleStartMyDay;
@@ -949,17 +960,21 @@ function Dashboard() {
           <button
             type="button"
             onClick={handleStartMyDay}
-            disabled={!estimateInputsReady}
+            disabled={!estimateInputsReady || dayAlreadyStarted}
             title={
-              !estimateInputsReady
-                ? "Still loading data needed for an accurate estimate."
-                : undefined
+              dayAlreadyStarted
+                ? "You already saved today’s timeline for this calendar day."
+                : !estimateInputsReady
+                  ? "Still loading data needed for an accurate estimate."
+                  : undefined
             }
             className={`w-full font-bold uppercase tracking-wide rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors shadow-md disabled:cursor-not-allowed disabled:opacity-45 ${
               compactHero ? "py-2 text-[11px]" : "py-3 text-xs sm:text-sm"
             }`}
           >
-            Start my day — save today&apos;s timeline
+            {dayAlreadyStarted
+              ? "Today’s timeline saved"
+              : "Start my day — save today’s timeline"}
           </button>
           {typeof process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA === "string" &&
             process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA.length >= 7 && (
@@ -984,15 +999,17 @@ function Dashboard() {
           <button
             type="button"
             onClick={handleStartMyDay}
-            disabled={!estimateInputsReady}
+            disabled={!estimateInputsReady || dayAlreadyStarted}
             title={
-              !estimateInputsReady
-                ? "Still loading data needed for an accurate estimate."
-                : undefined
+              dayAlreadyStarted
+                ? "You already saved today’s timeline for this calendar day."
+                : !estimateInputsReady
+                  ? "Still loading data needed for an accurate estimate."
+                  : undefined
             }
             className="px-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary-light transition-colors font-medium text-sm disabled:cursor-not-allowed disabled:opacity-45"
           >
-            Start my day
+            {dayAlreadyStarted ? "Timeline saved" : "Start my day"}
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}

@@ -4,7 +4,9 @@
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import {
+  normalizeBodyKeys,
   parseShortcutActiveCalories,
+  pickRawCaloriesFromBody,
   resolveFitnessPostDate,
 } from "../src/lib/shortcutFitnessPayload";
 
@@ -19,6 +21,25 @@ assert.equal(
   parseShortcutActiveCalories({ quantity: 12, unit: "kcal" as unknown as string }),
   12
 );
+
+assert.equal(parseShortcutActiveCalories(287_000), 287);
+
+assert.equal(
+  parseShortcutActiveCalories({
+    quantity: { unit: "kcal", doubleValue: 42.5 },
+  }),
+  42.5
+);
+
+const spaced = normalizeBodyKeys({
+  "Active Calories": [{ quantity: 100 }, { quantity: 50 }],
+});
+assert.equal(parseShortcutActiveCalories(pickRawCaloriesFromBody(spaced)), 150);
+
+const healthKey = normalizeBodyKeys({
+  HealthSamples: [{ quantity: { doubleValue: 10 } }, { quantity: { doubleValue: 5 } }],
+});
+assert.equal(parseShortcutActiveCalories(pickRawCaloriesFromBody(healthKey)), 15);
 
 const req = new NextRequest("https://example.com/api/fitness");
 assert.equal(

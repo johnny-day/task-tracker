@@ -3,6 +3,7 @@ import { resolveFitnessFromLog } from "@/lib/resolveFitnessFromLog";
 import {
   normalizeBodyKeys,
   parseShortcutActiveCalories,
+  pickRawCaloriesFromBody,
   resolveFitnessPostDate,
 } from "@/lib/shortcutFitnessPayload";
 import { NextRequest, NextResponse } from "next/server";
@@ -108,11 +109,7 @@ export async function POST(req: NextRequest) {
 
   const date = resolveFitnessPostDate(bodyLower, req);
 
-  const rawCal =
-    bodyLower.activecalories ??
-    bodyLower.active_calories ??
-    bodyLower.calories ??
-    bodyLower.activeenergyburned;
+  const rawCal = pickRawCaloriesFromBody(bodyLower);
   const activeCalories = parseShortcutActiveCalories(rawCal);
 
   if (activeCalories == null) {
