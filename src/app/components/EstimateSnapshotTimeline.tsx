@@ -5,6 +5,8 @@ import type { EstimateDayLog, EstimateSnapshot } from "@/lib/estimateSnapshotSto
 interface EstimateSnapshotTimelineProps {
   dayLog: EstimateDayLog;
   onStartMyDay: () => void;
+  /** When true, sits inside another card (no second bordered box). */
+  embedded?: boolean;
 }
 
 function formatRecorded(iso: string): string {
@@ -27,33 +29,50 @@ function snapshotLabel(s: EstimateSnapshot): string {
 export default function EstimateSnapshotTimeline({
   dayLog,
   onStartMyDay,
+  embedded = false,
 }: EstimateSnapshotTimelineProps) {
   const started = Boolean(dayLog.startedAt);
   const snapshots = dayLog.snapshots;
 
+  const rootClass = embedded
+    ? "mt-5 pt-5 border-t border-border text-left"
+    : "bg-card border border-border rounded-lg p-4 text-left";
+
   return (
-    <div className="bg-card border border-border rounded-lg p-4 text-left">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-        <div>
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
-            Done-by time tracker
-          </h2>
-          <p className="text-xs text-text-muted mt-1 max-w-xl">
-            Saved on this device only. We add a point when your estimated
-            &quot;done by&quot; time moves by{" "}
-            <strong className="text-text">30 minutes or more</strong> (rounded
-            to the clock minute). We also check about once a minute so the day
-            sliding forward can still create a new point. Resets at local
-            midnight.
-          </p>
+    <div className={rootClass}>
+      <div
+        className={
+          embedded
+            ? "space-y-3 mb-3"
+            : "flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3"
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 gap-y-3">
+          {embedded ? (
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+              Done-by time tracker
+            </h3>
+          ) : (
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+              Done-by time tracker
+            </h2>
+          )}
+          <button
+            type="button"
+            onClick={onStartMyDay}
+            className="px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm whitespace-nowrap shadow-sm"
+          >
+            Start my day
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onStartMyDay}
-          className="shrink-0 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm whitespace-nowrap"
-        >
-          Start my day
-        </button>
+        <p className="text-xs text-text-muted max-w-xl">
+          Saved on this device only. We add a point when your estimated
+          &quot;done by&quot; time moves by{" "}
+          <strong className="text-text">30 minutes or more</strong> (rounded to
+          the clock minute). We also check about once a minute so the day
+          sliding forward can still create a new point. Resets at local
+          midnight.
+        </p>
       </div>
 
       {!started ? (

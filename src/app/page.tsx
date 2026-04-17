@@ -608,12 +608,21 @@ export default function Dashboard() {
             day: "numeric",
           })}
         </h1>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm"
-        >
-          {showAddForm ? "Cancel" : "+ Add Task"}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleStartMyDay}
+            className="px-4 py-2 border-2 border-primary text-primary rounded-lg hover:bg-primary-light transition-colors font-medium text-sm"
+          >
+            Start my day
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm"
+          >
+            {showAddForm ? "Cancel" : "+ Add Task"}
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -811,12 +820,13 @@ export default function Dashboard() {
                 )}
               </>
             )}
-          </div>
 
-          <EstimateSnapshotTimeline
-            dayLog={dayLog}
-            onStartMyDay={handleStartMyDay}
-          />
+            <EstimateSnapshotTimeline
+              embedded
+              dayLog={dayLog}
+              onStartMyDay={handleStartMyDay}
+            />
+          </div>
         </div>
       </div>
 
