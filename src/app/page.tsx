@@ -141,10 +141,45 @@ function Dashboard() {
     );
     const dateStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, "0")}-${String(localDate.getDate()).padStart(2, "0")}`;
     const dayStart = startOfDay.toISOString();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const res = await fetch(
-      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}`
+      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}`
     );
-    setFitness(await res.json());
+    if (!res.ok) {
+      setFitness(null);
+      return;
+    }
+    const data: unknown = await res.json();
+    if (typeof data !== "object" || data === null) {
+      setFitness(null);
+      return;
+    }
+    const o = data as Record<string, unknown>;
+    if (typeof o.error === "string") {
+      setFitness(null);
+      return;
+    }
+    const calorieGoal = Number(o.calorieGoal);
+    const remaining = Number(o.remaining);
+    const exerciseMinutesLeft = Number(o.exerciseMinutesLeft);
+    const activeCalories = Number(o.activeCalories);
+    const calBurnRateNum = Number(o.calBurnRate);
+    if (
+      !Number.isFinite(calorieGoal) ||
+      !Number.isFinite(remaining) ||
+      !Number.isFinite(exerciseMinutesLeft) ||
+      !Number.isFinite(activeCalories)
+    ) {
+      setFitness(null);
+      return;
+    }
+    setFitness({
+      activeCalories,
+      calorieGoal,
+      calBurnRate: Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4,
+      remaining,
+      exerciseMinutesLeft,
+    });
   }, []);
 
   const loadCalendar = useCallback(async () => {

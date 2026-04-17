@@ -1,3 +1,4 @@
+import { getZonedDayStartMs } from "@/lib/zonedDayStart";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -31,18 +32,28 @@ export async function GET(req: NextRequest) {
     Number.isFinite(Number(rawRate)) ? Number(rawRate) : 4.0
   );
 
-  let burned = log?.activeCalories ?? 0;
-  if (log && dayStartParam) {
-    const dayStart = new Date(dayStartParam);
-    if (!Number.isNaN(dayStart.getTime()) && log.updatedAt < dayStart) {
-      burned = 0;
-    }
+  let burned = Number(log?.activeCalories ?? 0);
+  if (!Number.isFinite(burned) || burned < 0) burned = 0;
+
+  const tz = searchParams.get("tz");
+  const zonedStartMs = today && tz ? getZonedDayStartMs(today, tz) : null;
+  const boundary =
+    zonedStartMs != null
+      ? new Date(zonedStartMs)
+      : dayStartParam
+        ? new Date(dayStartParam)
+        : null;
+
+  if (log && boundary && !Number.isNaN(boundary.getTime()) && log.updatedAt < boundary) {
+    burned = 0;
   }
+
   const remaining = Math.max(0, calorieGoal - burned);
-  const rawMinutes = Math.ceil(remaining / calBurnRate);
-  const exerciseMinutesLeft = Number.isFinite(rawMinutes)
-    ? Math.max(0, rawMinutes)
-    : 0;
+  let exerciseMinutesLeft = 0;
+  if (remaining > 0) {
+    const rawMinutes = Math.ceil(remaining / calBurnRate);
+    exerciseMinutesLeft = Number.isFinite(rawMinutes) ? Math.max(1, rawMinutes) : 1;
+  }
 
   return NextResponse.json({
     date: today,
