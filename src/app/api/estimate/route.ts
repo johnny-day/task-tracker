@@ -3,19 +3,36 @@ import { calculateEstimate } from "@/lib/estimate";
 import { NextRequest, NextResponse } from "next/server";
 import { CalendarEvent, Settings } from "@/lib/types";
 
+function todayInTimeZone(tz: string | null | undefined): string {
+  if (tz) {
+    try {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+    } catch {
+      /* fall through to UTC */
+    }
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const calendarEvents: CalendarEvent[] = body.calendarEvents || [];
 
-  const today = new Date().toISOString().slice(0, 10);
+  const settings = await prisma.settings.findUnique({ where: { id: "default" } });
 
-  const [tasks, fitnessLog, settings] = await Promise.all([
+  const today = todayInTimeZone(settings?.fitnessTimeZone);
+
+  const [tasks, fitnessLog] = await Promise.all([
     prisma.task.findMany({
       where: { status: { not: "done" }, OR: [{ dueDate: today }, { dueDate: null }] },
       orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
     }),
     prisma.fitnessLog.findUnique({ where: { date: today } }),
-    prisma.settings.findUnique({ where: { id: "default" } }),
   ]);
 
   const effectiveSettings: Settings =
