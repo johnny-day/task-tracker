@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
 import { getFitnessDayContextForDisplay } from "@/lib/fitnessBrowserDay";
 import { Settings } from "@/lib/types";
@@ -19,6 +19,19 @@ interface AuthStatus {
   error: string | null;
 }
 
+/** Sorted IANA zones when the runtime supports it (Chrome, Safari, modern Edge). */
+function getAllIanaTimeZones(): string[] | null {
+  try {
+    const fn = (
+      Intl as unknown as { supportedValuesOf?: (key: string) => string[] }
+    ).supportedValuesOf;
+    if (typeof fn !== "function") return null;
+    return [...fn("timeZone")].sort((a, b) => a.localeCompare(b));
+  } catch {
+    return null;
+  }
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -30,6 +43,17 @@ export default function SettingsPage() {
   const [testCalories, setTestCalories] = useState(250);
   const [testSent, setTestSent] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
+
+  const ianaTimeZones = useMemo(() => getAllIanaTimeZones(), []);
+
+  const zoneSelectOptions = useMemo(() => {
+    if (!ianaTimeZones || !settings) return [];
+    const cur = settings.fitnessTimeZone;
+    if (cur && !ianaTimeZones.includes(cur)) {
+      return [cur, ...ianaTimeZones];
+    }
+    return ianaTimeZones;
+  }, [ianaTimeZones, settings]);
 
   const loadSettings = useCallback(async () => {
     setLoadError(null);
@@ -415,39 +439,58 @@ export default function SettingsPage() {
           <label className="block text-xs text-text-muted mb-1">
             Fitness calendar time zone (IANA)
           </label>
-          <input
-            type="text"
-            value={settings.fitnessTimeZone ?? ""}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                fitnessTimeZone:
-                  e.target.value.trim() === "" ? null : e.target.value,
-              })
-            }
-            placeholder="Type here, then Save — example: America/New_York"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text font-mono text-sm"
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-          />
+          {ianaTimeZones ? (
+            <select
+              value={settings.fitnessTimeZone ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSettings({
+                  ...settings,
+                  fitnessTimeZone: v === "" ? null : v,
+                });
+              }}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text font-mono text-sm"
+            >
+              <option value="">Browser default (match this computer)</option>
+              {zoneSelectOptions.map((z) => (
+                <option key={z} value={z}>
+                  {z}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={settings.fitnessTimeZone ?? ""}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  fitnessTimeZone:
+                    e.target.value.trim() === "" ? null : e.target.value,
+                })
+              }
+              placeholder="e.g. America/New_York"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-text font-mono text-sm"
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+          )}
           {settings.fitnessTimeZone ? (
             <p className="text-xs text-success mt-1.5 font-medium">
-              Saved in the database as: {settings.fitnessTimeZone}
+              Will save as: {settings.fitnessTimeZone}
             </p>
           ) : (
             <p className="text-xs text-warning mt-1.5 font-medium">
-              Nothing saved yet — gray text in the box is only a hint, not your
-              value.
+              None selected — choose a zone if your Shortcut only sends calories.
             </p>
           )}
           <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
             Use this if your Apple Shortcut only sends{" "}
             <code className="bg-border/60 px-1 rounded">activeCalories</code>{" "}
             (no <code className="bg-border/60 px-1 rounded">timezone</code> in
-            the JSON). Set it to the same IANA zone as your iPhone&apos;s day for
-            Health (for example where you live). Leave empty to use this
-            browser&apos;s time zone for the dashboard and test POST.
+            the JSON). Pick the same region as your iPhone&apos;s clock / Health
+            &quot;today&quot;. Then click Save Settings.
           </p>
         </div>
 
