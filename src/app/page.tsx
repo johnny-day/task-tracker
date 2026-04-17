@@ -28,6 +28,7 @@ import {
   DAY_TRACKING_STARTED_EVENT,
   START_MY_DAY_EVENT,
 } from "./components/StartMyDayNavButton";
+import { getBrowserFitnessDayContext } from "@/lib/fitnessBrowserDay";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
 
 function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
@@ -207,14 +208,7 @@ function Dashboard() {
   const loadFitness = useCallback(async () => {
     try {
       const localDate = new Date();
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      /** Same calendar date rule as Shortcut POST when it uses `timezone` + en-CA. */
-      const dateStr = new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date());
+      const { timeZone: tz, date: dateStr } = getBrowserFitnessDayContext();
       const startOfDay = new Date(
         localDate.getFullYear(),
         localDate.getMonth(),

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { signIn, signOut } from "next-auth/react";
+import { getBrowserFitnessDayContext } from "@/lib/fitnessBrowserDay";
 import { Settings } from "@/lib/types";
 
 interface MaskedApiKey {
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [testCalories, setTestCalories] = useState(250);
   const [testSent, setTestSent] = useState(false);
+  const [testError, setTestError] = useState<string | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoadError(null);
@@ -120,14 +122,29 @@ export default function SettingsPage() {
   }
 
   async function sendTestCalories() {
-    await fetch("/api/fitness", {
+    setTestError(null);
+    const { date, timeZone } = getBrowserFitnessDayContext();
+    const res = await fetch("/api/fitness", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer __test__",
       },
-      body: JSON.stringify({ activeCalories: testCalories }),
+      body: JSON.stringify({
+        activeCalories: testCalories,
+        date,
+        timezone: timeZone,
+      }),
     });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setTestError(
+        typeof data?.error === "string"
+          ? data.error
+          : `Request failed (HTTP ${res.status}).`
+      );
+      return;
+    }
     setTestSent(true);
     setTimeout(() => setTestSent(false), 3000);
   }
@@ -357,8 +374,9 @@ export default function SettingsPage() {
         </h2>
         <p className="text-sm text-text-muted mb-3">
           Manually send a calorie value to test the fitness widget on the
-          dashboard. This simulates what the Apple Shortcut will do
-          automatically.
+          dashboard. The request includes today&apos;s date and your
+          browser&apos;s time zone so it updates the same row the home page
+          reads (matching the Shortcut fields below).
         </p>
         <div className="flex gap-2 items-end">
           <div className="flex-1">
@@ -385,6 +403,11 @@ export default function SettingsPage() {
         {testSent && (
           <p className="text-sm text-success mt-2 font-medium">
             Sent! Check the dashboard to see the fitness widget update.
+          </p>
+        )}
+        {testError && (
+          <p className="text-sm text-danger mt-2 font-medium" role="alert">
+            {testError}
           </p>
         )}
       </section>
