@@ -37,12 +37,22 @@ export async function GET(req: NextRequest) {
 
   const tz = searchParams.get("tz");
   const zonedStartMs = today && tz ? getZonedDayStartMs(today, tz) : null;
+  const clientStartMs = dayStartParam
+    ? new Date(dayStartParam).getTime()
+    : NaN;
+  /** Earliest plausible start-of-today instant: aligns zoned midnight with the browser's local midnight when both are sent. */
+  let boundaryMs: number | null = null;
+  if (zonedStartMs != null && Number.isFinite(clientStartMs)) {
+    boundaryMs = Math.min(zonedStartMs, clientStartMs);
+  } else if (zonedStartMs != null) {
+    boundaryMs = zonedStartMs;
+  } else if (Number.isFinite(clientStartMs)) {
+    boundaryMs = clientStartMs;
+  }
   const boundary =
-    zonedStartMs != null
-      ? new Date(zonedStartMs)
-      : dayStartParam
-        ? new Date(dayStartParam)
-        : null;
+    boundaryMs != null && Number.isFinite(boundaryMs)
+      ? new Date(boundaryMs)
+      : null;
 
   /** Last Shortcut write was before "today" in the user's zone, or before local day start. */
   let isShortcutStale = false;
@@ -77,15 +87,22 @@ export async function GET(req: NextRequest) {
     exerciseMinutesLeft = Number.isFinite(rawMinutes) ? Math.max(1, rawMinutes) : 1;
   }
 
-  return NextResponse.json({
-    date: today,
-    activeCalories: burned,
-    calorieGoal,
-    calBurnRate,
-    remaining,
-    exerciseMinutesLeft,
-    shortcutDataStale: isShortcutStale,
-  });
+  return NextResponse.json(
+    {
+      date: today,
+      activeCalories: burned,
+      calorieGoal,
+      calBurnRate,
+      remaining,
+      exerciseMinutesLeft,
+      shortcutDataStale: isShortcutStale,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }
 
 export async function POST(req: NextRequest) {

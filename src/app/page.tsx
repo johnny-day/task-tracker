@@ -144,7 +144,8 @@ function Dashboard() {
     const dayStart = startOfDay.toISOString();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const res = await fetch(
-      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}`
+      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}&tz=${encodeURIComponent(tz)}`,
+      { cache: "no-store" }
     );
     if (!res.ok) {
       setFitness(null);
@@ -162,22 +163,23 @@ function Dashboard() {
     }
     const calorieGoal = Number(o.calorieGoal);
     const remaining = Number(o.remaining);
-    const exerciseMinutesLeft = Number(o.exerciseMinutesLeft);
     const activeCalories = Number(o.activeCalories);
     const calBurnRateNum = Number(o.calBurnRate);
     if (
       !Number.isFinite(calorieGoal) ||
       !Number.isFinite(remaining) ||
-      !Number.isFinite(exerciseMinutesLeft) ||
       !Number.isFinite(activeCalories)
     ) {
       setFitness(null);
       return;
     }
+    const calBurn = Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4;
+    const exerciseMinutesLeft =
+      remaining <= 0 ? 0 : Math.max(1, Math.ceil(remaining / calBurn));
     setFitness({
       activeCalories,
       calorieGoal,
-      calBurnRate: Number.isFinite(calBurnRateNum) ? calBurnRateNum : 4,
+      calBurnRate: calBurn,
       remaining,
       exerciseMinutesLeft,
       shortcutDataStale: o.shortcutDataStale === true,
