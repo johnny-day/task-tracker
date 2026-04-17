@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Task, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/types";
+import { Task, STATUS_LABELS } from "@/lib/types";
 
 interface TaskCardProps {
   task: Task;
@@ -102,8 +102,6 @@ export default function TaskCard({
                 {task.estimatedMinutes} min
               </button>
             )}
-            <span>{PRIORITY_LABELS[task.priority]}</span>
-            <span className="capitalize">{task.category}</span>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
