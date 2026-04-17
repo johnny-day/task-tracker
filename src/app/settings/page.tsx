@@ -77,7 +77,8 @@ export default function SettingsPage() {
   async function saveSettings() {
     if (!settings) return;
     setSaving(true);
-    await fetch("/api/settings", {
+    setLoadError(null);
+    const res = await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -92,6 +93,16 @@ export default function SettingsPage() {
             : null,
       }),
     });
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setLoadError(
+        typeof payload?.error === "string"
+          ? payload.error
+          : `Save failed (HTTP ${res.status}).`
+      );
+      setSaving(false);
+      return;
+    }
     await loadSettings();
     setSaving(false);
   }
@@ -99,7 +110,8 @@ export default function SettingsPage() {
   async function useDefaultBurnRateAndDismiss() {
     if (!settings) return;
     setSaving(true);
-    await fetch("/api/settings", {
+    setLoadError(null);
+    const res = await fetch("/api/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -107,6 +119,16 @@ export default function SettingsPage() {
         burnRateOnboardingDone: true,
       }),
     });
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setLoadError(
+        typeof payload?.error === "string"
+          ? payload.error
+          : `Save failed (HTTP ${res.status}).`
+      );
+      setSaving(false);
+      return;
+    }
     await loadSettings();
     setSaving(false);
   }
@@ -183,6 +205,23 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold text-text">Settings</h1>
+
+      {loadError && (
+        <div
+          className="rounded-lg border border-danger/40 bg-danger-light px-4 py-3 text-sm text-danger"
+          role="alert"
+        >
+          <p className="font-medium mb-1">Could not save settings</p>
+          <p className="text-danger/90">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setLoadError(null)}
+            className="mt-2 text-xs font-medium underline hover:no-underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {showBurnRateOnboarding && (
         <section
