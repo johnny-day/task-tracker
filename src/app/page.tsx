@@ -112,8 +112,20 @@ export default function Dashboard() {
 
   const loadFitness = useCallback(async () => {
     const localDate = new Date();
+    const startOfDay = new Date(
+      localDate.getFullYear(),
+      localDate.getMonth(),
+      localDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
     const dateStr = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, "0")}-${String(localDate.getDate()).padStart(2, "0")}`;
-    const res = await fetch(`/api/fitness?date=${dateStr}`);
+    const dayStart = startOfDay.toISOString();
+    const res = await fetch(
+      `/api/fitness?date=${encodeURIComponent(dateStr)}&dayStart=${encodeURIComponent(dayStart)}`
+    );
     setFitness(await res.json());
   }, []);
 
@@ -136,6 +148,41 @@ export default function Dashboard() {
     loadHiddenEvents,
     loadCompletedToday,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId = 0;
+
+    function msUntilNextLocalMidnight() {
+      const now = new Date();
+      const next = new Date(now);
+      next.setDate(next.getDate() + 1);
+      next.setHours(0, 0, 0, 0);
+      return Math.max(1000, next.getTime() - now.getTime());
+    }
+
+    function scheduleMidnightRefresh() {
+      timeoutId = window.setTimeout(() => {
+        if (!cancelled) {
+          loadFitness();
+          scheduleMidnightRefresh();
+        }
+      }, msUntilNextLocalMidnight());
+    }
+
+    scheduleMidnightRefresh();
+
+    function onVisible() {
+      if (document.visibilityState === "visible") loadFitness();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [loadFitness]);
 
   useEffect(() => {
     const el = scrollSentinelRef.current;

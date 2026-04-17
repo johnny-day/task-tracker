@@ -16,6 +16,7 @@ async function validateApiKey(req: NextRequest): Promise<boolean> {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const today = searchParams.get("date") || new Date().toISOString().slice(0, 10);
+  const dayStartParam = searchParams.get("dayStart");
 
   const log = await prisma.fitnessLog.findUnique({ where: { date: today } });
   const settings = await prisma.settings.findUnique({
@@ -24,7 +25,14 @@ export async function GET(req: NextRequest) {
 
   const calorieGoal = settings?.calorieGoal ?? 700;
   const calBurnRate = settings?.calBurnRate ?? 4.0;
-  const burned = log?.activeCalories ?? 0;
+
+  let burned = log?.activeCalories ?? 0;
+  if (log && dayStartParam) {
+    const dayStart = new Date(dayStartParam);
+    if (!Number.isNaN(dayStart.getTime()) && log.updatedAt < dayStart) {
+      burned = 0;
+    }
+  }
   const remaining = Math.max(0, calorieGoal - burned);
   const exerciseMinutesLeft = Math.ceil(remaining / calBurnRate);
 
