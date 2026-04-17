@@ -520,6 +520,7 @@ function Dashboard() {
       pinnedFreeMinutes += Math.max(0, Math.round(inFree / 60000));
     }
 
+    /** When fitness is still loading, assume 0 burned and use settings (or sane defaults) so the hero is not stuck at 0 min. */
     const exerciseMinutes =
       fitness != null
         ? exerciseMinutesFromBurnProgress(
@@ -527,13 +528,13 @@ function Dashboard() {
             fitness.activeCalories,
             fitness.calBurnRate ?? 4
           )
-        : fitnessMeta != null
-          ? exerciseMinutesFromBurnProgress(
-              fitnessMeta.calorieGoal,
-              0,
-              fitnessMeta.calBurnRate
-            )
-          : 0;
+        : exerciseMinutesFromBurnProgress(
+            fitnessMeta?.calorieGoal ?? 700,
+            0,
+            fitnessMeta?.calBurnRate && fitnessMeta.calBurnRate > 0
+              ? fitnessMeta.calBurnRate
+              : 4
+          );
 
     let taskMinutes = 0;
     for (const t of unscheduledTasks) {
