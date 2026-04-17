@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { loadSettings } from "@/lib/loadSettings";
 import { calculateEstimate } from "@/lib/estimate";
 import { NextRequest, NextResponse } from "next/server";
-import { CalendarEvent, Settings } from "@/lib/types";
+import { CalendarEvent } from "@/lib/types";
 
 function todayInTimeZone(tz: string | null | undefined): string {
   if (tz) {
@@ -23,9 +24,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const calendarEvents: CalendarEvent[] = body.calendarEvents || [];
 
-  const settings = await prisma.settings.findUnique({ where: { id: "default" } });
-
-  const today = todayInTimeZone(settings?.fitnessTimeZone);
+  const settings = await loadSettings();
+  const today = todayInTimeZone(settings.fitnessTimeZone);
 
   const [tasks, fitnessLog] = await Promise.all([
     prisma.task.findMany({
@@ -35,32 +35,11 @@ export async function POST(req: NextRequest) {
     prisma.fitnessLog.findUnique({ where: { date: today } }),
   ]);
 
-  const effectiveSettings: Settings =
-    settings != null
-      ? {
-          id: settings.id,
-          wakeTime: settings.wakeTime,
-          sleepTime: settings.sleepTime,
-          calorieGoal: settings.calorieGoal,
-          calBurnRate: settings.calBurnRate,
-          burnRateOnboardingDone: settings.burnRateOnboardingDone,
-          fitnessTimeZone: settings.fitnessTimeZone ?? null,
-        }
-      : {
-          id: "default",
-          wakeTime: "07:00",
-          sleepTime: "22:00",
-          calorieGoal: 700,
-          calBurnRate: 4.0,
-          burnRateOnboardingDone: true,
-          fitnessTimeZone: null,
-        };
-
   const estimate = calculateEstimate(
     tasks,
     calendarEvents,
     fitnessLog?.activeCalories ?? 0,
-    effectiveSettings
+    settings
   );
 
   return NextResponse.json(estimate);

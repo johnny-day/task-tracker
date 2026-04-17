@@ -1,41 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import {
+  loadSettings,
+  buildSelectList,
+  rowToSettings,
+  SETTINGS_DEFAULTS,
+} from "@/lib/loadSettings";
 import { NextRequest, NextResponse } from "next/server";
 
-/** DB predates a Prisma-mapped column (P2022 or driver/validation-style messages). */
-function isSettingsColumnMissingError(e: unknown, column: string): boolean {
-  const msg = e instanceof Error ? e.message : String(e);
-  if (!msg.includes(column)) return false;
-  return (
-    msg.includes("does not exist") ||
-    msg.includes("Unknown column") ||
-    (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2022")
+async function detectSettingsColumns(): Promise<Set<string>> {
+  const rows = await prisma.$queryRaw<Array<{ column_name: string }>>(
+    Prisma.sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'Settings'`
   );
+  return new Set(rows.map((r) => r.column_name));
 }
 
-function isBurnColumnMissingError(e: unknown): boolean {
-  return isSettingsColumnMissingError(e, "burnRateOnboardingDone");
-}
-
-/** Read Settings row when DB predates `burnRateOnboardingDone` migration. */
-async function getSettingsLegacyRow() {
-  const rows = await prisma.$queryRaw<
-    Array<{
-      id: string;
-      wakeTime: string;
-      sleepTime: string;
-      calorieGoal: number;
-      calBurnRate: number;
-    }>
-  >(
-    Prisma.sql`SELECT id, "wakeTime", "sleepTime", "calorieGoal", "calBurnRate" FROM "Settings" WHERE id = 'default'`
-  );
-  return rows[0] ?? null;
-}
-
-/** Build a Prisma-safe update object from the JSON body (no unknown keys). */
-function parseSettingsPatch(raw: Record<string, unknown>): Prisma.SettingsUncheckedUpdateInput {
-  const data: Prisma.SettingsUncheckedUpdateInput = {};
+function parseSettingsPatch(raw: Record<string, unknown>): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
 
   if (typeof raw.wakeTime === "string") data.wakeTime = raw.wakeTime;
   if (typeof raw.sleepTime === "string") data.sleepTime = raw.sleepTime;
@@ -61,60 +42,13 @@ function parseSettingsPatch(raw: Record<string, unknown>): Prisma.SettingsUnchec
   return data;
 }
 
-const OPTIONAL_SETTINGS_DB_COLUMNS = [
-  "burnRateOnboardingDone",
-  "fitnessTimeZone",
-] as const;
-
-function stripMissingSettingsColumnsFromErrorMessage(
-  msg: string,
-  payload: Prisma.SettingsUncheckedUpdateInput
-): Prisma.SettingsUncheckedUpdateInput {
-  const out = { ...payload } as Record<string, unknown>;
-  for (const col of OPTIONAL_SETTINGS_DB_COLUMNS) {
-    if (isSettingsColumnMissingError({ message: msg } as Error, col)) {
-      delete out[col];
-    }
-  }
-  return out as Prisma.SettingsUncheckedUpdateInput;
-}
-
 export async function GET() {
   try {
-    let settings = await prisma.settings.findUnique({
-      where: { id: "default" },
-    });
-
-    if (!settings) {
-      settings = await prisma.settings.create({
-        data: { id: "default" },
-      });
-    }
-
+    const settings = await loadSettings();
     return NextResponse.json(settings);
   } catch (e) {
-    if (!isBurnColumnMissingError(e)) {
-      throw e;
-    }
-
-    const row = await getSettingsLegacyRow();
-    if (row) {
-      return NextResponse.json({
-        ...row,
-        burnRateOnboardingDone: true,
-        fitnessTimeZone: null,
-      });
-    }
-
-    return NextResponse.json({
-      id: "default",
-      wakeTime: "07:00",
-      sleepTime: "22:00",
-      calorieGoal: 700,
-      calBurnRate: 4.0,
-      burnRateOnboardingDone: true,
-      fitnessTimeZone: null,
-    });
+    console.error("[GET /api/settings]", e);
+    return NextResponse.json(SETTINGS_DEFAULTS);
   }
 }
 
@@ -126,60 +60,45 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const data = parseSettingsPatch(raw);
-
-  async function upsertPayload(payload: Prisma.SettingsUncheckedUpdateInput) {
-    const create: Prisma.SettingsUncheckedCreateInput = {
-      id: "default",
-      wakeTime: typeof payload.wakeTime === "string" ? payload.wakeTime : "07:00",
-      sleepTime: typeof payload.sleepTime === "string" ? payload.sleepTime : "22:00",
-      calorieGoal: typeof payload.calorieGoal === "number" ? payload.calorieGoal : 700,
-      calBurnRate: typeof payload.calBurnRate === "number" ? payload.calBurnRate : 4.0,
-    };
-    if (typeof payload.burnRateOnboardingDone === "boolean") {
-      create.burnRateOnboardingDone = payload.burnRateOnboardingDone;
-    }
-    if ("fitnessTimeZone" in payload) {
-      const tz = payload.fitnessTimeZone;
-      create.fitnessTimeZone =
-        tz === null || tz === undefined
-          ? null
-          : typeof tz === "string"
-            ? tz
-            : null;
-    }
-
-    return prisma.settings.upsert({
-      where: { id: "default" },
-      update: payload,
-      create,
-    });
+  const patch = parseSettingsPatch(raw);
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  let attempt: Prisma.SettingsUncheckedUpdateInput = data;
-  let lastError: unknown;
-  for (let i = 0; i < 6; i++) {
-    try {
-      const settings = await upsertPayload(attempt);
-      return NextResponse.json(settings);
-    } catch (e) {
-      lastError = e;
-      const msg = e instanceof Error ? e.message : String(e);
-      const next = stripMissingSettingsColumnsFromErrorMessage(msg, attempt);
-      const stripped =
-        Object.keys(next).length < Object.keys(attempt).length ||
-        OPTIONAL_SETTINGS_DB_COLUMNS.some(
-          (col) => col in attempt && !(col in (next as object))
-        );
-      if (!stripped) {
-        break;
-      }
-      attempt = next;
-    }
-  }
+  try {
+    const dbCols = await detectSettingsColumns();
 
-  const message =
-    lastError instanceof Error ? lastError.message : "Settings update failed";
-  console.error("[PATCH /api/settings]", lastError);
-  return NextResponse.json({ error: message }, { status: 500 });
+    await prisma.$executeRaw`
+      INSERT INTO "Settings" (id, "wakeTime", "sleepTime", "calorieGoal", "calBurnRate")
+      VALUES ('default', '07:00', '22:00', 700, 4.0)
+      ON CONFLICT (id) DO NOTHING
+    `;
+
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    for (const [key, val] of Object.entries(patch)) {
+      if (!dbCols.has(key)) continue;
+      setClauses.push(`"${key}" = $${idx}`);
+      values.push(val);
+      idx++;
+    }
+
+    if (setClauses.length > 0) {
+      const sql = `UPDATE "Settings" SET ${setClauses.join(", ")} WHERE id = 'default'`;
+      await prisma.$executeRawUnsafe(sql, ...values);
+    }
+
+    const select = buildSelectList(dbCols);
+    const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT ${select} FROM "Settings" WHERE id = 'default'`
+    );
+
+    return NextResponse.json(rowToSettings(rows[0] ?? {}));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Settings update failed";
+    console.error("[PATCH /api/settings]", e);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

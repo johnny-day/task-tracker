@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { loadSettings } from "@/lib/loadSettings";
 import { resolveFitnessFromLog } from "@/lib/resolveFitnessFromLog";
 import {
   normalizeBodyKeys,
@@ -26,12 +27,10 @@ export async function GET(req: NextRequest) {
   const dayStartParam = searchParams.get("dayStart");
 
   const log = await prisma.fitnessLog.findUnique({ where: { date: today } });
-  const settings = await prisma.settings.findUnique({
-    where: { id: "default" },
-  });
+  const settings = await loadSettings();
 
-  const rawGoal = settings?.calorieGoal ?? 700;
-  const rawRate = settings?.calBurnRate ?? 4.0;
+  const rawGoal = settings.calorieGoal;
+  const rawRate = settings.calBurnRate;
   const calorieGoal = Math.max(1, Math.round(Number(rawGoal)) || 700);
   const calBurnRate = Math.max(
     0.1,
@@ -71,12 +70,12 @@ export async function GET(req: NextRequest) {
       isShortcutStale: resolved.shortcutDataStale,
       dayStartParam: dayStartParam ?? null,
       rowFound,
-      settingsFitnessTimeZone: settings?.fitnessTimeZone ?? null,
+      settingsFitnessTimeZone: settings.fitnessTimeZone,
     };
     if (!rowFound) {
       const tzUnset =
-        settings?.fitnessTimeZone == null ||
-        (typeof settings.fitnessTimeZone === "string" && settings.fitnessTimeZone.trim() === "");
+        settings.fitnessTimeZone == null ||
+        settings.fitnessTimeZone.trim() === "";
       debug.hint = tzUnset
         ? "No FitnessLog for this date. If the Shortcut only sends activeCalories, set Fitness calendar time zone in Settings so POST and GET share the same calendar day."
         : "No FitnessLog for this date. Confirm Settings fitness time zone matches your location, then run the Shortcut again.";
@@ -119,12 +118,10 @@ export async function POST(req: NextRequest) {
     body && typeof body === "object" && !Array.isArray(body) ? body : {}
   );
 
-  const settings = await prisma.settings.findUnique({
-    where: { id: "default" },
-  });
+  const settings = await loadSettings();
 
   const date = resolveFitnessPostDate(bodyLower, req, {
-    settingsFallbackTz: settings?.fitnessTimeZone ?? null,
+    settingsFallbackTz: settings.fitnessTimeZone,
   });
 
   const rawCal = pickRawCaloriesFromBody(bodyLower);
