@@ -74,6 +74,20 @@ export default function SettingsPage() {
     loadAuthStatus();
   }, [loadSettings, loadApiKeys, loadAuthStatus]);
 
+  async function readSaveError(res: Response): Promise<string> {
+    const text = await res.text();
+    try {
+      const o = JSON.parse(text) as { error?: string };
+      if (typeof o?.error === "string" && o.error.trim() !== "") return o.error;
+    } catch {
+      /* not JSON (e.g. HTML error page) */
+    }
+    const snippet = text.replace(/\s+/g, " ").trim().slice(0, 240);
+    return snippet
+      ? `Save failed (HTTP ${res.status}): ${snippet}`
+      : `Save failed (HTTP ${res.status}).`;
+  }
+
   async function saveSettings() {
     if (!settings) return;
     setSaving(true);
@@ -93,13 +107,8 @@ export default function SettingsPage() {
             : null,
       }),
     });
-    const payload = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
-      setLoadError(
-        typeof payload?.error === "string"
-          ? payload.error
-          : `Save failed (HTTP ${res.status}).`
-      );
+      setLoadError(await readSaveError(res));
       setSaving(false);
       return;
     }
@@ -119,13 +128,8 @@ export default function SettingsPage() {
         burnRateOnboardingDone: true,
       }),
     });
-    const payload = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
-      setLoadError(
-        typeof payload?.error === "string"
-          ? payload.error
-          : `Save failed (HTTP ${res.status}).`
-      );
+      setLoadError(await readSaveError(res));
       setSaving(false);
       return;
     }

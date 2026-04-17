@@ -135,12 +135,19 @@ export async function PATCH(req: NextRequest) {
       isBurnColumnMissingError(e) &&
       typeof raw.burnRateOnboardingDone === "boolean"
     ) {
-      const { burnRateOnboardingDone: _drop, ...rest } = data;
-      const settings = await upsertPayload(rest);
-      return NextResponse.json({
-        ...settings,
-        burnRateOnboardingDone: true,
-      });
+      try {
+        const { burnRateOnboardingDone: _drop, ...rest } = data;
+        const settings = await upsertPayload(rest);
+        return NextResponse.json({
+          ...settings,
+          burnRateOnboardingDone: true,
+        });
+      } catch (e2) {
+        const message =
+          e2 instanceof Error ? e2.message : "Settings update failed";
+        console.error("[PATCH /api/settings] legacy retry failed", e2);
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
     }
     const message =
       e instanceof Error ? e.message : "Settings update failed";
