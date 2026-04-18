@@ -3,15 +3,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export async function GET(req: NextRequest) {
+  const today = new URL(req.url).searchParams.get("today");
+  if (today && ISO_DATE.test(today)) {
+    await prisma.hiddenEvent.deleteMany({
+      where: {
+        scheduledDateKey: { not: null, lt: today },
+      },
+    });
+  }
+
   const hidden = await prisma.hiddenEvent.findMany({
-    select: { eventId: true, summary: true },
+    select: { eventId: true, summary: true, scheduledDateKey: true },
   });
   return NextResponse.json(hidden);
 }
 
 export async function POST(req: NextRequest) {
-  const { eventId, summary } = await req.json();
+  const body = await req.json();
+  const { eventId, summary } = body;
+  const rawKey = body.scheduledDateKey;
+  const scheduledDateKey =
+    typeof rawKey === "string" && ISO_DATE.test(rawKey.trim()) ? rawKey.trim() : null;
 
   if (!eventId || typeof eventId !== "string") {
     return NextResponse.json(
@@ -22,8 +37,15 @@ export async function POST(req: NextRequest) {
 
   const hidden = await prisma.hiddenEvent.upsert({
     where: { eventId },
-    update: { summary: summary || "" },
-    create: { eventId, summary: summary || "" },
+    update: {
+      summary: summary || "",
+      ...(scheduledDateKey != null ? { scheduledDateKey } : {}),
+    },
+    create: {
+      eventId,
+      summary: summary || "",
+      ...(scheduledDateKey != null ? { scheduledDateKey } : {}),
+    },
   });
 
   return NextResponse.json(hidden);

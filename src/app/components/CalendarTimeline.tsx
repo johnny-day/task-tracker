@@ -8,7 +8,7 @@ interface CalendarTimelineProps {
   connected: boolean;
   pinnedTasks?: Task[];
   onScheduleTask?: (taskId: string, scheduledStart: string | null) => void;
-  onHideEvent?: (eventId: string, summary: string) => void;
+  onHideEvent?: (event: CalendarEvent) => void;
 }
 
 function formatTime(iso: string): string {
@@ -189,7 +189,7 @@ export default function CalendarTimeline({
             </p>
             {onHideEvent && (
               <button
-                onClick={() => onHideEvent(ad.event!.id, ad.event!.summary)}
+                onClick={() => onHideEvent(ad.event!)}
                 className="text-text-muted hover:text-danger shrink-0 p-0.5 rounded hover:bg-danger/10 transition-colors"
                 title="Hide from schedule"
               >
@@ -340,7 +340,7 @@ export default function CalendarTimeline({
                 </p>
                 {!past && onHideEvent && (
                   <button
-                    onClick={() => onHideEvent(ev.id, ev.summary)}
+                    onClick={() => onHideEvent(ev)}
                     className="text-text-muted hover:text-danger shrink-0 p-0.5 rounded hover:bg-danger/10 transition-colors"
                     title="Hide from schedule"
                   >

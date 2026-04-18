@@ -31,6 +31,7 @@ import {
   START_MY_DAY_EVENT,
 } from "./components/StartMyDayNavButton";
 import { getFitnessDayContextForDisplay } from "@/lib/fitnessBrowserDay";
+import { eventCalendarDayKey } from "@/lib/eventCalendarDayKey";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
 
 function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
@@ -160,8 +161,19 @@ function Dashboard() {
 
   const loadHiddenEvents = useCallback(async () => {
     try {
-      const res = await fetch("/api/hidden-events");
-      setHiddenEvents(await res.json());
+      const today = localDateKey();
+      const res = await fetch(
+        `/api/hidden-events?today=${encodeURIComponent(today)}`,
+        { cache: "no-store" }
+      );
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      setHiddenEvents(
+        list.map((h: { eventId: string; summary?: string }) => ({
+          eventId: h.eventId,
+          summary: typeof h.summary === "string" ? h.summary : "",
+        }))
+      );
     } catch {
       setHiddenEvents([]);
     } finally {
@@ -532,12 +544,15 @@ function Dashboard() {
   const hiddenIds = new Set(hiddenEvents.map((h) => h.eventId));
   const visibleEvents = calendar.events.filter((e) => !hiddenIds.has(e.id));
 
-  async function hideEvent(eventId: string, summary: string) {
+  async function hideEvent(ev: CalendarEvent) {
+    const eventId = ev.id;
+    const summary = ev.summary;
+    const scheduledDateKey = eventCalendarDayKey(ev);
     setHiddenEvents((prev) => [...prev, { eventId, summary }]);
     await fetch("/api/hidden-events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventId, summary }),
+      body: JSON.stringify({ eventId, summary, scheduledDateKey }),
     });
   }
 
