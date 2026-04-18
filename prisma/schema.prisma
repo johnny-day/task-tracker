@@ -49,12 +49,10 @@ model Settings {
 }
 
 model HiddenEvent {
-  id                 String   @id @default(cuid())
-  eventId            String   @unique
-  summary            String   @default("")
-  /** Local YYYY-MM-DD for the event day; rows older than "today" are pruned on fetch. */
-  scheduledDateKey   String?
-  createdAt          DateTime @default(now())
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  summary   String   @default("")
+  createdAt DateTime @default(now())
 }
 
 model Account {
