@@ -23,6 +23,8 @@ import StartMyDayUrlSync from "./components/StartMyDayUrlSync";
 import DoneByConfettiOverlay, {
   type DoneByConfettiVariant,
 } from "./components/DoneByConfettiOverlay";
+import DayCompletionHistory from "./components/DayCompletionHistory";
+import { upsertDayOutcome } from "@/lib/dayOutcomeStorage";
 import {
   DAY_LOG_MUTATED_EVENT,
   DAY_TRACKING_STARTED_EVENT,
@@ -150,6 +152,9 @@ function Dashboard() {
   const celebrationBaselineSeededRef = useRef(false);
   /** Bumped when snapshot history is cleared so celebration baselines re-seed without a done-by change. */
   const [estimateTrackingEpoch, setEstimateTrackingEpoch] = useState(0);
+  /** Bumped when a full-day outcome is saved for `DayCompletionHistory`. */
+  const [outcomeRefreshKey, setOutcomeRefreshKey] = useState(0);
+  const prevEstimateInputsReadyRef = useRef(false);
   const dayLogRef = useRef(dayLog);
   dayLogRef.current = dayLog;
 
@@ -749,6 +754,39 @@ function Dashboard() {
     };
   }
 
+  /** Confetti on cold load / refresh when already fully done for the day (transition effect skips first paint). */
+  useEffect(() => {
+    if (!estimateInputsReady) {
+      prevEstimateInputsReadyRef.current = false;
+      return;
+    }
+    const justBecameReady = !prevEstimateInputsReadyRef.current;
+    prevEstimateInputsReadyRef.current = true;
+    if (!justBecameReady) return;
+    const isDoneForDay = doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents;
+    if (isDoneForDay) {
+      setStartDayConfetti(buildConfettiFromDoneBy(doneByRef.current));
+    }
+  }, [estimateInputsReady, doneBy.totalMinutes, doneBy.hasRemainingEvents]);
+
+  /** Persist full-day clear time; update to latest if user re-clears the same calendar day. */
+  useEffect(() => {
+    if (!estimateInputsReady) return;
+    const isDoneForDay = doneBy.totalMinutes === 0 && !doneBy.hasRemainingEvents;
+    if (!isDoneForDay) return;
+    const changed = upsertDayOutcome({
+      dateKey: localDateKey(),
+      achievedAtMs: Date.now(),
+      doneByLabel: doneBy.timeStr ?? null,
+    });
+    if (changed) setOutcomeRefreshKey((k) => k + 1);
+  }, [
+    estimateInputsReady,
+    doneBy.totalMinutes,
+    doneBy.hasRemainingEvents,
+    doneBy.timeStr,
+  ]);
+
   useEffect(() => {
     if (!estimateInputsReady) return;
 
@@ -1286,6 +1324,7 @@ function Dashboard() {
               onClearAllSnapshots={clearAllSnapshotPoints}
               onResetDayTracking={resetEstimateTrackingToday}
             />
+            <DayCompletionHistory refreshKey={outcomeRefreshKey} />
           </div>
         </div>
       </div>
