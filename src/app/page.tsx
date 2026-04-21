@@ -32,6 +32,7 @@ import {
 } from "./components/StartMyDayNavButton";
 import { getFitnessDayContextForDisplay } from "@/lib/fitnessBrowserDay";
 import { exerciseMinutesFromBurnProgress } from "@/lib/fitnessExerciseMinutes";
+import { readApiError } from "@/lib/readApiError";
 
 function pickFiniteNumber(record: Record<string, unknown>, keys: string[]): number {
   for (const key of keys) {
@@ -173,6 +174,11 @@ function Dashboard() {
     try {
       const res = await fetch("/api/tasks?status=pending&status=in_progress");
       const data = await res.json();
+      if (!res.ok) {
+        console.error("loadTasks failed:", data);
+        setTasks([]);
+        return;
+      }
       setTasks(Array.isArray(data) ? data : []);
     } catch {
       setTasks([]);
@@ -208,6 +214,11 @@ function Dashboard() {
     });
     const res = await fetch(`/api/tasks?${params}`);
     const data = await res.json();
+    if (!res.ok) {
+      console.error("loadCompletedToday failed:", data);
+      setCompletedToday([]);
+      return;
+    }
     setCompletedToday(Array.isArray(data) ? data : []);
   }, []);
 
@@ -449,70 +460,98 @@ function Dashboard() {
 
 
   async function addTask(data: TaskFormValues) {
-    await fetch("/api/tasks", {
+    const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     setShowAddForm(false);
     loadTasks();
     loadCompletedToday();
   }
 
   async function updateTaskStatus(id: string, status: string) {
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
     loadCompletedToday();
   }
 
   async function deleteTask(id: string) {
-    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
     loadCompletedToday();
   }
 
   async function updateTask(data: TaskFormValues) {
     if (!editingTask) return;
-    await fetch(`/api/tasks/${editingTask.id}`, {
+    const res = await fetch(`/api/tasks/${editingTask.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     setEditingTask(null);
     loadTasks();
     loadCompletedToday();
   }
 
   async function updateMinutes(id: string, minutes: number) {
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estimatedMinutes: minutes }),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
     loadCompletedToday();
   }
 
   async function scheduleTask(taskId: string, scheduledStart: string | null) {
-    await fetch(`/api/tasks/${taskId}`, {
+    const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scheduledStart }),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
     loadCompletedToday();
   }
 
   async function moveTaskToCategory(taskId: string, category: string) {
-    await fetch(`/api/tasks/${taskId}`, {
+    const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category, scheduledStart: null, calendarEventId: null }),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
     loadCompletedToday();
   }

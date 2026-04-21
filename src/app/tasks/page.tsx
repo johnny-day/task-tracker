@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Task, STATUS_LABELS } from "@/lib/types";
+import { readApiError } from "@/lib/readApiError";
 import TaskForm, { type TaskFormValues } from "../components/TaskForm";
 import TaskCard from "../components/TaskCard";
 
@@ -18,6 +19,11 @@ export default function TasksPage() {
         : `/api/tasks?status=${statusFilter}`;
     const res = await fetch(url);
     const data = await res.json();
+    if (!res.ok) {
+      console.error("loadTasks failed:", data);
+      setTasks([]);
+      return;
+    }
     setTasks(Array.isArray(data) ? data : []);
   }, [statusFilter]);
 
@@ -26,36 +32,52 @@ export default function TasksPage() {
   }, [loadTasks]);
 
   async function addTask(data: TaskFormValues) {
-    await fetch("/api/tasks", {
+    const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     setShowAddForm(false);
     loadTasks();
   }
 
   async function updateTaskStatus(id: string, status: string) {
-    await fetch(`/api/tasks/${id}`, {
+    const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
   }
 
   async function deleteTask(id: string) {
-    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     loadTasks();
   }
 
   async function updateTask(data: TaskFormValues) {
     if (!editingTask) return;
-    await fetch(`/api/tasks/${editingTask.id}`, {
+    const res = await fetch(`/api/tasks/${editingTask.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    if (!res.ok) {
+      alert(await readApiError(res));
+      return;
+    }
     setEditingTask(null);
     loadTasks();
   }
