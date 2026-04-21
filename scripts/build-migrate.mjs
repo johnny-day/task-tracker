@@ -11,9 +11,14 @@ const isPostgres =
 
 if (vercel && isPostgres) {
   console.log("[build] Running prisma migrate deploy…");
+  // Neon poolers often time out on Prisma's advisory lock (P1002). Safe for
+  // single-threaded Vercel builds; set DIRECT_URL (non-pooler) on Vercel too.
   execFileSync("npx", ["prisma", "migrate", "deploy"], {
     stdio: "inherit",
-    env: process.env,
+    env: {
+      ...process.env,
+      PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK: "1",
+    },
   });
 } else {
   console.log(
