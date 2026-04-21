@@ -12,6 +12,7 @@
     "verify:shortcut-payload": "tsx scripts/verify-shortcut-fitness-payload.ts",
     "e2e:exercise": "tsx scripts/e2e-exercise-smoke.ts",
     "db:push": "prisma db push",
+    "db:list-tasks": "tsx scripts/list-tasks.ts",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
   },
