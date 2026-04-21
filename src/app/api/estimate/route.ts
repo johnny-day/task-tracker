@@ -1,39 +1,30 @@
 import { prisma } from "@/lib/prisma";
 import { loadSettings } from "@/lib/loadSettings";
 import { calculateEstimate } from "@/lib/estimate";
+import { rolloverRepeatingTasks } from "@/lib/rolloverRepeatingTasks";
+import { sortTasksByCategoryThenOrder } from "@/lib/taskCategories";
+import { todayInTimeZone } from "@/lib/todayInTimeZone";
 import { NextRequest, NextResponse } from "next/server";
 import { CalendarEvent } from "@/lib/types";
-
-function todayInTimeZone(tz: string | null | undefined): string {
-  if (tz) {
-    try {
-      return new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date());
-    } catch {
-      /* fall through to UTC */
-    }
-  }
-  return new Date().toISOString().slice(0, 10);
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const calendarEvents: CalendarEvent[] = body.calendarEvents || [];
 
+  await rolloverRepeatingTasks();
+
   const settings = await loadSettings();
   const today = todayInTimeZone(settings.fitnessTimeZone);
 
-  const [tasks, fitnessLog] = await Promise.all([
+  const [tasksRaw, fitnessLog] = await Promise.all([
     prisma.task.findMany({
       where: { status: { not: "done" }, OR: [{ dueDate: today }, { dueDate: null }] },
-      orderBy: [{ priority: "asc" }, { sortOrder: "asc" }],
+      orderBy: { sortOrder: "asc" },
     }),
     prisma.fitnessLog.findUnique({ where: { date: today } }),
   ]);
+
+  const tasks = sortTasksByCategoryThenOrder(tasksRaw);
 
   const estimate = calculateEstimate(
     tasks,

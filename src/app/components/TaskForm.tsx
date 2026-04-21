@@ -1,24 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { PRIORITY_LABELS } from "@/lib/types";
+import {
+  TASK_CATEGORY_LABELS,
+  TASK_CATEGORY_ORDER,
+  normalizeCategory,
+  type TaskCategorySlug,
+} from "@/lib/taskCategories";
+
+const WORK_CATEGORIES = TASK_CATEGORY_ORDER.filter(
+  (s): s is Exclude<TaskCategorySlug, "longterm"> => s !== "longterm"
+);
+
+export interface TaskFormValues {
+  title: string;
+  estimatedMinutes: number;
+  category: string;
+  calendarEventId: string | null;
+  repeatDaily: boolean;
+}
 
 interface TaskFormProps {
-  onSubmit: (task: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  }) => void;
+  onSubmit: (task: TaskFormValues) => void;
   calendarEvents?: { id: string; summary: string }[];
-  initialValues?: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  };
+  initialValues?: TaskFormValues;
   submitLabel?: string;
   onCancel?: () => void;
 }
@@ -32,12 +37,18 @@ export default function TaskForm({
 }: TaskFormProps) {
   const [title, setTitle] = useState(initialValues?.title ?? "");
   const [minutes, setMinutes] = useState(initialValues?.estimatedMinutes ?? 30);
-  const [priority, setPriority] = useState(initialValues?.priority ?? 2);
   const [isLongTerm, setIsLongTerm] = useState(initialValues?.category === "longterm");
-  const category = isLongTerm ? "longterm" : "general";
+  const [workCategory, setWorkCategory] = useState<Exclude<TaskCategorySlug, "longterm">>(() =>
+    initialValues?.category === "longterm"
+      ? "misc"
+      : (normalizeCategory(initialValues?.category) as Exclude<TaskCategorySlug, "longterm">)
+  );
+  const [repeatDaily, setRepeatDaily] = useState(initialValues?.repeatDaily ?? false);
   const [calEventId, setCalEventId] = useState<string | null>(
     initialValues?.calendarEventId ?? null
   );
+
+  const category = isLongTerm ? "longterm" : workCategory;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,15 +56,16 @@ export default function TaskForm({
     onSubmit({
       title: title.trim(),
       estimatedMinutes: minutes,
-      priority,
       category,
       calendarEventId: calEventId || null,
+      repeatDaily: isLongTerm ? false : repeatDaily,
     });
     if (!initialValues) {
       setTitle("");
       setMinutes(30);
-      setPriority(2);
       setIsLongTerm(false);
+      setWorkCategory("misc");
+      setRepeatDaily(false);
       setCalEventId(null);
     }
   }
@@ -82,20 +94,24 @@ export default function TaskForm({
             className="w-full px-3 py-1.5 rounded-lg border border-border bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
-        <div className="flex-1 min-w-[120px]">
-          <label className="block text-xs text-text-muted mb-1">Priority</label>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(Number(e.target.value))}
-            className="w-full px-3 py-1.5 rounded-lg border border-border bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {Object.entries(PRIORITY_LABELS).map(([val, label]) => (
-              <option key={val} value={val}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!isLongTerm && (
+          <div className="flex-1 min-w-[140px]">
+            <label className="block text-xs text-text-muted mb-1">Category</label>
+            <select
+              value={workCategory}
+              onChange={(e) =>
+                setWorkCategory(e.target.value as Exclude<TaskCategorySlug, "longterm">)
+              }
+              className="w-full px-3 py-1.5 rounded-lg border border-border bg-card text-text focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {WORK_CATEGORIES.map((slug) => (
+                <option key={slug} value={slug}>
+                  {TASK_CATEGORY_LABELS[slug]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex items-end min-w-[120px] pb-0.5">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -108,6 +124,17 @@ export default function TaskForm({
           </label>
         </div>
       </div>
+      {!isLongTerm && (
+        <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-text">
+          <input
+            type="checkbox"
+            checked={repeatDaily}
+            onChange={(e) => setRepeatDaily(e.target.checked)}
+            className="accent-primary w-4 h-4"
+          />
+          Repeats daily (resets to pending the next day after you complete it)
+        </label>
+      )}
       {calendarEvents.length > 0 && (
         <div>
           <label className="block text-xs text-text-muted mb-1">

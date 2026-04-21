@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { Task, STATUS_LABELS } from "@/lib/types";
+import {
+  TASK_CATEGORY_BORDER,
+  TASK_CATEGORY_LABELS,
+  normalizeCategory,
+  type TaskCategorySlug,
+} from "@/lib/taskCategories";
 
 interface TaskCardProps {
   task: Task;
@@ -13,11 +19,10 @@ interface TaskCardProps {
   compact?: boolean;
 }
 
-const priorityColors: Record<number, string> = {
-  1: "border-l-danger",
-  2: "border-l-warning",
-  3: "border-l-success",
-};
+function borderClassForTask(task: Task): string {
+  const slug = normalizeCategory(task.category) as TaskCategorySlug;
+  return TASK_CATEGORY_BORDER[slug] ?? TASK_CATEGORY_BORDER.misc;
+}
 
 export default function TaskCard({
   task,
@@ -31,6 +36,8 @@ export default function TaskCard({
   const isDone = task.status === "done";
   const [editingMinutes, setEditingMinutes] = useState(false);
   const [minutesValue, setMinutesValue] = useState(task.estimatedMinutes);
+  const catSlug = normalizeCategory(task.category) as TaskCategorySlug;
+  const categoryLabel = TASK_CATEGORY_LABELS[catSlug] ?? TASK_CATEGORY_LABELS.misc;
 
   function commitMinutes() {
     setEditingMinutes(false);
@@ -47,9 +54,9 @@ export default function TaskCard({
         e.dataTransfer.setData("text/task-id", task.id);
         e.dataTransfer.effectAllowed = "move";
       }}
-      className={`bg-card border border-border rounded-lg ${compact ? "p-2" : "p-4"} border-l-4 ${
-        priorityColors[task.priority] || "border-l-border"
-      } ${isDone ? "opacity-60" : ""} ${isDraggable && !editingMinutes ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
+      className={`bg-card border border-border rounded-lg ${compact ? "p-2" : "p-4"} border-l-4 ${borderClassForTask(
+        task
+      )} ${isDone ? "opacity-60" : ""} ${isDraggable && !editingMinutes ? "cursor-grab active:cursor-grabbing" : ""} transition-all`}
     >
       <h3
         className={`font-medium leading-snug mb-1 ${
@@ -94,9 +101,12 @@ export default function TaskCard({
               Scheduled
             </span>
           )}
-          {task.category === "longterm" && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-border text-text-muted font-medium">
-              Long Term
+          <span className="text-xs px-2 py-0.5 rounded-full bg-border/80 text-text-muted font-medium">
+            {categoryLabel}
+          </span>
+          {task.repeatDaily && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium">
+              Daily
             </span>
           )}
         </div>

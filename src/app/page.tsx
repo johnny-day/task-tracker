@@ -14,7 +14,7 @@ import {
   withoutSnapshotAt,
   type EstimateDayLog,
 } from "@/lib/estimateSnapshotStorage";
-import TaskForm from "./components/TaskForm";
+import TaskForm, { type TaskFormValues } from "./components/TaskForm";
 import TaskCard from "./components/TaskCard";
 import FitnessWidget from "./components/FitnessWidget";
 import CalendarTimeline from "./components/CalendarTimeline";
@@ -448,13 +448,7 @@ function Dashboard() {
   }, []);
 
 
-  async function addTask(data: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  }) {
+  async function addTask(data: TaskFormValues) {
     await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -481,13 +475,7 @@ function Dashboard() {
     loadCompletedToday();
   }
 
-  async function updateTask(data: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  }) {
+  async function updateTask(data: TaskFormValues) {
     if (!editingTask) return;
     await fetch(`/api/tasks/${editingTask.id}`, {
       method: "PATCH",
@@ -548,6 +536,17 @@ function Dashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventId }),
     });
+  }
+
+  async function clearAllHiddenEvents() {
+    const prev = hiddenEvents;
+    setHiddenEvents([]);
+    try {
+      const res = await fetch("/api/hidden-events?all=1", { method: "DELETE" });
+      if (!res.ok) setHiddenEvents(prev);
+    } catch {
+      setHiddenEvents(prev);
+    }
   }
 
   const longTermTasks = tasks.filter((t) => t.category === "longterm" && t.status !== "done");
@@ -1083,9 +1082,16 @@ function Dashboard() {
             Edit Task
           </h2>
           <TaskForm
+            key={editingTask.id}
             onSubmit={updateTask}
             calendarEvents={visibleEvents}
-            initialValues={editingTask}
+            initialValues={{
+              title: editingTask.title,
+              estimatedMinutes: editingTask.estimatedMinutes,
+              category: editingTask.category,
+              calendarEventId: editingTask.calendarEventId,
+              repeatDaily: editingTask.repeatDaily ?? false,
+            }}
             submitLabel="Save Changes"
             onCancel={() => setEditingTask(null)}
           />
@@ -1122,11 +1128,23 @@ function Dashboard() {
             </div>
           )}
           {hiddenEvents.length > 0 && (
-            <details className="bg-card border border-border rounded-lg p-4">
-              <summary className="text-xs font-semibold text-text-muted uppercase tracking-wide cursor-pointer select-none">
-                Hidden events ({hiddenEvents.length})
-              </summary>
-              <div className="mt-2 space-y-1">
+            <div className="bg-card border border-border rounded-lg p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+                  Hidden from schedule ({hiddenEvents.length})
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => void clearAllHiddenEvents()}
+                  className="text-xs font-medium text-danger hover:underline shrink-0"
+                >
+                  Clear all hidden
+                </button>
+              </div>
+              <p className="text-[11px] text-text-muted leading-snug">
+                These calendar blocks stay hidden until you show them again.
+              </p>
+              <div className="space-y-1">
                 {hiddenEvents.map((h) => (
                   <div
                     key={h.eventId}
@@ -1136,15 +1154,16 @@ function Dashboard() {
                       {h.summary || "(No title)"}
                     </span>
                     <button
+                      type="button"
                       onClick={() => restoreEvent(h.eventId)}
                       className="text-primary hover:underline shrink-0 font-medium"
                     >
-                      Restore
+                      Show on schedule
                     </button>
                   </div>
                 ))}
               </div>
-            </details>
+            </div>
           )}
         </div>
 
@@ -1162,7 +1181,7 @@ function Dashboard() {
               if (taskId) {
                 const fromLongTerm = longTermTasks.some((t) => t.id === taskId);
                 if (fromLongTerm) {
-                  moveTaskToCategory(taskId, "general");
+                  moveTaskToCategory(taskId, "misc");
                 } else {
                   scheduleTask(taskId, null);
                 }

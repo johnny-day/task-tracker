@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { rolloverRepeatingTasks } from "@/lib/rolloverRepeatingTasks";
+import { normalizeCategory, sortTasksByCategoryThenOrder } from "@/lib/taskCategories";
 
 export async function GET(req: NextRequest) {
+  await rolloverRepeatingTasks();
+
   const url = new URL(req.url);
   const statuses = url.searchParams.getAll("status");
   const date = url.searchParams.get("date");
@@ -25,13 +29,19 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: completedRange
       ? { updatedAt: "desc" }
-      : [{ priority: "asc" }, { sortOrder: "asc" }],
+      : { sortOrder: "asc" },
   });
 
-  return NextResponse.json(tasks);
+  const ordered = completedRange
+    ? tasks
+    : sortTasksByCategoryThenOrder(tasks);
+
+  return NextResponse.json(ordered);
 }
 
 export async function POST(req: NextRequest) {
+  await rolloverRepeatingTasks();
+
   const body = await req.json();
 
   const maxOrder = await prisma.task.aggregate({ _max: { sortOrder: true } });
@@ -41,12 +51,12 @@ export async function POST(req: NextRequest) {
     data: {
       title: body.title,
       estimatedMinutes: body.estimatedMinutes ?? 30,
-      priority: body.priority ?? 2,
       status: body.status ?? "pending",
-      category: body.category ?? "general",
+      category: normalizeCategory(body.category),
       calendarEventId: body.calendarEventId ?? null,
       dueDate: body.dueDate ?? null,
       sortOrder: nextOrder,
+      repeatDaily: body.repeatDaily === true,
     },
   });
 

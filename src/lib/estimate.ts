@@ -1,8 +1,9 @@
 import { CalendarEvent, Settings } from "./types";
+import { categorySortRank } from "./taskCategories";
 
 interface EstimateTask {
   estimatedMinutes: number;
-  priority: number;
+  category: string;
   status: string;
   calendarEventId: string | null;
   sortOrder: number;
@@ -108,7 +109,11 @@ export function calculateEstimate(
 
   const pendingTasks = tasks
     .filter((t) => t.status !== "done" && !t.calendarEventId)
-    .sort((a, b) => a.priority - b.priority || a.sortOrder - b.sortOrder);
+    .sort(
+      (a, b) =>
+        categorySortRank(a.category) - categorySortRank(b.category) ||
+        a.sortOrder - b.sortOrder
+    );
 
   let totalTaskMinutes = 0;
   for (const t of pendingTasks) {

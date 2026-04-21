@@ -9,18 +9,20 @@ datasource db {
 }
 
 model Task {
-  id               String    @id @default(cuid())
-  title            String
-  estimatedMinutes Int       @default(30)
-  priority         Int       @default(2) // 1=high, 2=medium, 3=low
-  status           String    @default("pending") // pending, in_progress, done
-  category         String    @default("general")
-  calendarEventId  String?
-  scheduledStart   DateTime?
-  sortOrder        Int       @default(0)
-  dueDate          String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                     String    @id @default(cuid())
+  title                  String
+  estimatedMinutes       Int       @default(30)
+  priority               Int       @default(2) // legacy; UI uses category for ordering
+  status                 String    @default("pending") // pending, in_progress, done
+  category               String    @default("misc")
+  calendarEventId        String?
+  scheduledStart         DateTime?
+  sortOrder              Int       @default(0)
+  dueDate                String?
+  repeatDaily            Boolean   @default(false)
+  lastCompletedLocalDate String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 }
 
 model FitnessLog {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Task, STATUS_LABELS } from "@/lib/types";
-import TaskForm from "../components/TaskForm";
+import TaskForm, { type TaskFormValues } from "../components/TaskForm";
 import TaskCard from "../components/TaskCard";
 
 export default function TasksPage() {
@@ -25,13 +25,7 @@ export default function TasksPage() {
     loadTasks();
   }, [loadTasks]);
 
-  async function addTask(data: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  }) {
+  async function addTask(data: TaskFormValues) {
     await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,13 +49,7 @@ export default function TasksPage() {
     loadTasks();
   }
 
-  async function updateTask(data: {
-    title: string;
-    estimatedMinutes: number;
-    priority: number;
-    category: string;
-    calendarEventId: string | null;
-  }) {
+  async function updateTask(data: TaskFormValues) {
     if (!editingTask) return;
     await fetch(`/api/tasks/${editingTask.id}`, {
       method: "PATCH",
@@ -122,8 +110,15 @@ export default function TasksPage() {
             Edit Task
           </h2>
           <TaskForm
+            key={editingTask.id}
             onSubmit={updateTask}
-            initialValues={editingTask}
+            initialValues={{
+              title: editingTask.title,
+              estimatedMinutes: editingTask.estimatedMinutes,
+              category: editingTask.category,
+              calendarEventId: editingTask.calendarEventId,
+              repeatDaily: editingTask.repeatDaily ?? false,
+            }}
             submitLabel="Save Changes"
             onCancel={() => setEditingTask(null)}
           />

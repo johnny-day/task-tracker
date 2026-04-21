@@ -9,6 +9,8 @@ export interface Task {
   scheduledStart: string | null;
   sortOrder: number;
   dueDate: string | null;
+  repeatDaily?: boolean;
+  lastCompletedLocalDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -49,13 +51,6 @@ export interface CompletionEstimate {
 }
 
 export type TaskStatus = "pending" | "in_progress" | "done";
-export type Priority = 1 | 2 | 3;
-
-export const PRIORITY_LABELS: Record<number, string> = {
-  1: "High",
-  2: "Medium",
-  3: "Low",
-};
 
 export const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
